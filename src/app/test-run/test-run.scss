@@ -1,0 +1,180 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+// Counter, progress and timer stay in view under the header while a long question scrolls.
+.bar {
+  position: sticky;
+  top: calc(var(--header-h) + var(--sp-2));
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 48px;
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);
+  border: var(--edge-w) solid var(--edge);
+  border-radius: var(--radius-l);
+  background: color-mix(in srgb, var(--surface-solid) 82%, transparent);
+  box-shadow: var(--shadow-card);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+
+  .progress {
+    flex: 1;
+    min-width: 2rem;
+  }
+}
+
+.position {
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  strong {
+    color: var(--ink);
+    font-size: var(--fs-lg);
+  }
+}
+
+.timer {
+  flex: none;
+}
+
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.meta {
+  color: var(--accent-text);
+}
+
+.text {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.hint {
+  margin-bottom: var(--sp-2);
+  padding: 0;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+
+.feedback {
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+// A mark next to the word, so the verdict does not rest on colour alone.
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--neg);
+  font-weight: 700;
+
+  &::before {
+    content: '\2717';
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--neg);
+    color: var(--accent-ink);
+    font-size: var(--fs-sm);
+  }
+
+  &.right {
+    color: var(--pos);
+
+    &::before {
+      content: '\2713';
+      background: var(--pos);
+    }
+  }
+}
+
+.pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+
+  > .btn {
+    flex: 1 1 9rem;
+  }
+}
+
+.prev::before {
+  content: '\2190';
+}
+
+.next::after {
+  content: '\2192';
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+}
+
+.cell {
+  min-height: 44px;
+  border: var(--edge-w) solid var(--edge-strong);
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease);
+
+  &:hover {
+    background: var(--surface-3);
+  }
+
+  &[data-state='answered'] {
+    border-color: var(--accent);
+    background: var(--accent-softer);
+    color: var(--ink);
+  }
+
+  &[data-state='correct'] {
+    border-color: var(--pos);
+    background: var(--pos-soft);
+    color: var(--pos);
+  }
+
+  &[data-state='incorrect'] {
+    border-color: var(--neg);
+    background: var(--neg-soft);
+    color: var(--neg);
+  }
+
+  &[aria-current] {
+    box-shadow: 0 0 0 2px var(--ink);
+    font-weight: 800;
+  }
+}
+
+// Scrolled into view when it opens; the margins keep it clear of the sticky header and test bar.
+.confirm {
+  display: grid;
+  gap: var(--sp-3);
+  border-color: color-mix(in oklab, var(--warn) 50%, transparent);
+  background-image: linear-gradient(var(--warn-soft), var(--warn-soft));
+  scroll-margin: calc(var(--header-h) + 80px) 0 var(--sp-4);
+}
+
+.finish {
+  align-self: center;
+  color: var(--ink-2);
+}

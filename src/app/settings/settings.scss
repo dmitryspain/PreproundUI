@@ -1,0 +1,114 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+// Two columns even on a phone: the previews stay readable at 390 px.
+.themes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.theme {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: var(--sp-2);
+  text-align: left;
+  border: var(--edge-w) solid var(--edge);
+  border-radius: var(--radius-l);
+  background: var(--surface-2);
+  transition:
+    transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    border-color var(--dur-1) var(--ease);
+
+  &[aria-checked='true'] {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+}
+
+@media (hover: hover) {
+  .theme:hover {
+    transform: translateY(-2px);
+    border-color: var(--edge-strong);
+  }
+}
+
+.theme-text {
+  display: grid;
+  gap: 2px;
+  padding: 0 var(--sp-1) var(--sp-1);
+  overflow-wrap: anywhere;
+
+  .muted {
+    font-size: var(--fs-xs);
+  }
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-3);
+}
+
+.reset {
+  height: 44px;
+  margin-right: var(--sp-2);
+}
+
+// The button is the 44×44 tap target; the colour dot inside it is smaller.
+.swatch {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+
+  &::before {
+    content: '';
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: oklch(var(--accent-l) var(--accent-c) var(--hue, 0));
+    box-shadow: 0 0 0 1px var(--line-strong);
+    transition: transform var(--dur-1) var(--ease);
+  }
+
+  &[aria-pressed='true']::before {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+}
+
+@media (hover: hover) {
+  .swatch:hover::before {
+    transform: scale(1.1);
+  }
+}
+
+// The whole hue circle at the theme's own lightness and chroma.
+.hue {
+  --range-track: linear-gradient(
+    90deg,
+    oklch(var(--accent-l) var(--accent-c) 0),
+    oklch(var(--accent-l) var(--accent-c) 60),
+    oklch(var(--accent-l) var(--accent-c) 120),
+    oklch(var(--accent-l) var(--accent-c) 180),
+    oklch(var(--accent-l) var(--accent-c) 240),
+    oklch(var(--accent-l) var(--accent-c) 300),
+    oklch(var(--accent-l) var(--accent-c) 360)
+  );
+}

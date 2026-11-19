@@ -1,0 +1,103 @@
+// Sizes are in cqw (percent of the preview's width), so the miniature scales as a whole.
+:host {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  container-type: inline-size;
+}
+
+.mini {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 6cqw;
+  background: radial-gradient(circle at 15% 0%, var(--accent-soft), transparent 60%), var(--bg);
+  box-shadow: inset 0 0 0 var(--edge-w) var(--edge);
+  border-radius: inherit;
+  font-size: 7cqw;
+  line-height: 1;
+}
+
+// The light half of `auto`, under the diagonal.
+.split {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4cqw;
+  color: var(--ink-2);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer {
+  flex: 0 0 40%;
+  height: 2.5cqw;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.left {
+  display: block;
+  width: 65%;
+  height: 100%;
+  background: var(--accent);
+}
+
+.text {
+  width: 80%;
+  height: 4cqw;
+  border-radius: 999px;
+  background: var(--ink-3);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 3cqw;
+  height: 9cqw;
+  padding: 0 3cqw;
+  border: var(--edge-w) solid var(--line-strong);
+  border-radius: calc(var(--radius-s) / 2);
+  background: var(--surface);
+
+  &.right {
+    border-color: var(--pos);
+    background: var(--pos-soft);
+  }
+}
+
+.mark {
+  flex: none;
+  width: 4cqw;
+  height: 4cqw;
+  border: 1px solid var(--ink-3);
+  border-radius: 50%;
+
+  .right & {
+    border-color: var(--pos);
+    background: var(--pos);
+  }
+}
+
+.line {
+  flex: 0 0 55%;
+  height: 2.5cqw;
+  border-radius: 999px;
+  background: var(--line-strong);
+}
+
+.button {
+  width: 45%;
+  height: 9cqw;
+  border-radius: calc(var(--radius-s) / 2);
+  background: var(--accent);
+}

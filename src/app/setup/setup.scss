@@ -1,0 +1,209 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.page-head {
+  margin-bottom: var(--sp-2);
+}
+
+.fields {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.label {
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.level {
+  height: 44px;
+  padding: 0 var(--sp-4);
+  font-size: var(--fs-md);
+}
+
+.total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+
+  .label {
+    color: var(--ink);
+    font-size: var(--fs-md);
+  }
+}
+
+.number {
+  flex: none;
+  width: 5rem;
+  padding: 0 var(--sp-2);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.field-error {
+  margin-top: var(--sp-2);
+  color: var(--neg);
+  font-size: var(--fs-sm);
+  text-align: right;
+}
+
+.topics {
+  margin: var(--sp-3) 0 var(--sp-2);
+}
+
+.topic {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+
+  & + & {
+    border-top: var(--edge-w) solid var(--line);
+  }
+
+  &.inactive .topic-title {
+    color: var(--ink-3);
+  }
+}
+
+.topic-main {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+
+  .muted {
+    font-size: var(--fs-xs);
+  }
+}
+
+.topic-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.remove {
+  flex: none;
+  width: 40px;
+  padding: 0;
+  color: var(--ink-3);
+  font-size: var(--fs-xl);
+  font-weight: 400;
+}
+
+.empty {
+  padding: var(--sp-5) var(--sp-4);
+  border: var(--edge-w) dashed var(--line-strong);
+  border-radius: var(--radius-m);
+  text-align: center;
+}
+
+// A ghost button whose text lines up with the card's content.
+.add {
+  margin-left: calc(-1 * var(--sp-3));
+  padding: 0 var(--sp-3);
+  color: var(--accent-text);
+
+  &::before {
+    content: '+';
+    font-size: var(--fs-xl);
+    font-weight: 400;
+  }
+
+  &[aria-expanded='true']::before {
+    content: '\2212';
+  }
+}
+
+.add-topic {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding: var(--sp-3);
+  border: var(--edge-w) solid var(--edge);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
+}
+
+.candidates {
+  max-height: 16rem;
+  overflow-y: auto;
+
+  .muted {
+    padding: var(--sp-2) var(--sp-3);
+  }
+}
+
+.candidate {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-s);
+  text-align: left;
+  transition: background var(--dur-1) var(--ease);
+
+  &:hover {
+    background: var(--surface-3);
+  }
+}
+
+// The bar fills with the accent, turns green when the split matches the total and red past it.
+.summary {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: var(--edge-w) solid var(--line);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+
+  strong {
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &[data-state='full'] {
+    --fill: var(--pos);
+  }
+
+  &[data-state='over'] {
+    --fill: var(--neg);
+  }
+}
+
+.hint {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  cursor: pointer;
+
+  & + .card-sub {
+    margin-top: var(--sp-1);
+  }
+}

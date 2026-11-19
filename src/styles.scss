@@ -1,0 +1,9 @@
+// Prepround design system, entry point. Partials live in src/styles/:
+//   tokens     — structural tokens (spacing, type, motion, page shell), the same in every theme
+//   themes     — Aurora, Daylight and Terminal as sets of tokens under [data-theme]
+//   base       — reset, typography, focus, view transitions, reduced motion
+//   components — shared building blocks (cards, buttons, controls, answers, progress)
+@use 'styles/tokens';
+@use 'styles/themes';
+@use 'styles/base';
+@use 'styles/components';

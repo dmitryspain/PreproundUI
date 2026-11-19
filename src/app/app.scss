@@ -1,0 +1,99 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+// Sticky and translucent: the page (and the Aurora glow) shows through, blurred.
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: var(--edge-w) solid var(--line);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+
+// The same height with and without the links, so starting a test does not shift the page.
+// As wide as the content, so the logo lines up with the page.
+.header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  height: var(--header-h);
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-page);
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  letter-spacing: var(--heading-tracking);
+  text-decoration: none;
+}
+
+// The mark: a tile in the accent gradient with a three-quarter ring, a round of questions under way.
+.logo-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-s);
+  background: linear-gradient(
+    135deg,
+    var(--accent),
+    oklch(var(--accent-l) var(--accent-c) calc(var(--accent-h) + 45))
+  );
+  box-shadow: 0 6px 18px -6px var(--accent);
+
+  &::before,
+  &::after {
+    content: '';
+    grid-area: 1 / 1;
+    border-radius: 50%;
+  }
+
+  &::before {
+    width: 14px;
+    height: 14px;
+    border: 2.5px solid var(--accent-ink);
+    border-right-color: transparent;
+    transform: rotate(45deg);
+  }
+
+  &::after {
+    width: 4px;
+    height: 4px;
+    background: var(--accent-ink);
+  }
+}
+
+.nav-link {
+  color: var(--ink-2);
+
+  &:hover,
+  &.active {
+    color: var(--ink);
+  }
+
+  &.active {
+    background: var(--surface-2);
+  }
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--sp-5) var(--space-page) var(--sp-7);
+}

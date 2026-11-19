@@ -1,0 +1,76 @@
+<header class="head">
+  <p class="eyebrow">Персоналізація</p>
+  <h1 class="page-title">Налаштування</h1>
+</header>
+
+<section class="card" aria-labelledby="theme-title">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title" id="theme-title">Тема оформлення</h2>
+      <p class="card-sub">Зберігається лише на цьому пристрої.</p>
+    </div>
+  </div>
+
+  <div class="themes" role="radiogroup" aria-labelledby="theme-title">
+    @for (option of themes; track option.id) {
+      <button
+        type="button"
+        role="radio"
+        class="theme"
+        [attr.aria-checked]="prefs.theme() === option.id"
+        (click)="pickTheme(option.id, $event)"
+      >
+        <app-theme-preview [theme]="option.id" />
+        <span class="theme-text">
+          <strong>{{ option.name }}</strong>
+          <span class="muted">{{ option.description }}</span>
+        </span>
+      </button>
+    }
+  </div>
+</section>
+
+<section class="card" aria-labelledby="accent-title">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title" id="accent-title">Акцентний колір</h2>
+      <p class="card-sub">
+        Колір кнопок і виділень. Яскравість підбирає тема, тож текст лишається читабельним.
+      </p>
+    </div>
+  </div>
+
+  <div class="swatches" role="group" aria-labelledby="accent-title">
+    <button
+      type="button"
+      class="chip reset"
+      [attr.aria-pressed]="prefs.accent() === null"
+      (click)="prefs.setAccent(null)"
+    >
+      Колір теми
+    </button>
+    @for (preset of accents; track preset.hue) {
+      <button
+        type="button"
+        class="swatch"
+        [style.--hue]="preset.hue"
+        [attr.aria-pressed]="prefs.accent() === preset.hue"
+        [attr.aria-label]="preset.name"
+        [attr.title]="preset.name"
+        (click)="prefs.setAccent(preset.hue)"
+      ></button>
+    }
+  </div>
+
+  <input
+    #hueInput
+    type="range"
+    class="range hue"
+    min="0"
+    max="360"
+    step="1"
+    aria-label="Відтінок акценту"
+    [value]="hue()"
+    (input)="setHue(hueInput.valueAsNumber)"
+  />
+</section>

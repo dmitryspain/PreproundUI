@@ -1,0 +1,126 @@
+@if (questions().length > 0) {
+  <div class="bar">
+    <p class="position">
+      <strong>{{ index() + 1 }}</strong> / {{ questions().length }}
+    </p>
+    <span class="progress" aria-hidden="true">
+      <span class="progress-fill" [style.width.%]="answeredShare()"></span>
+    </span>
+    @let left = remaining();
+    @if (left !== null) {
+      <p class="timer pill pill-lg" role="timer" [class.neg]="left < 60">
+        Залишилось {{ formatDuration(left) }}
+      </p>
+    }
+  </div>
+
+  @for (question of shown(); track question.id) {
+    @let isLocked = locked();
+    <article class="card question">
+      <p class="meta eyebrow">
+        {{ topicTitle(question.topicId) }} · {{ levelTitle(question.levelId) }}
+      </p>
+
+      <p class="text content-text" [innerHTML]="question.text | contentText"></p>
+      @if (question.code; as code) {
+        <pre class="code"><code>{{ code.source }}</code></pre>
+      }
+
+      <fieldset
+        class="options answers"
+        [class.locked]="isLocked"
+        [attr.aria-label]="question.type === 'single' ? 'Варіанти відповіді' : null"
+      >
+        @if (question.type === 'multiple') {
+          <legend class="hint">Кілька правильних відповідей</legend>
+        }
+        @for (option of question.options; track option.key) {
+          @let isSelected = selected().has(option.key);
+          <label
+            class="option answer"
+            [class.selected]="isSelected"
+            [class.correct]="isLocked && option.isCorrect"
+            [class.wrong]="isLocked && isSelected && !option.isCorrect"
+          >
+            <input
+              #box
+              [type]="question.type === 'single' ? 'radio' : 'checkbox'"
+              [name]="'answer-' + question.id"
+              [value]="option.key"
+              [checked]="isSelected"
+              [disabled]="isLocked"
+              (change)="select(question, option.key, box)"
+            />
+            <span class="option-text content-text" [innerHTML]="option.text | contentText"></span>
+            @if (isLocked && option.isCorrect) {
+              <span class="tag pill pos">правильна</span>
+            }
+          </label>
+        }
+      </fieldset>
+
+      @if (isLocked) {
+        <section class="feedback callout" [class.pos]="correct()" [class.neg]="!correct()">
+          <p class="verdict" role="status" [class.right]="correct()">
+            {{ correct() ? 'Правильно' : 'Неправильно' }}
+          </p>
+          <p class="explanation content-text" [innerHTML]="question.explanation | contentText"></p>
+        </section>
+      }
+
+      <button
+        type="button"
+        class="btn btn-primary btn-block"
+        [disabled]="isLocked || selected().size === 0"
+        (click)="check()"
+      >
+        Перевірити
+      </button>
+    </article>
+  }
+
+  <div class="pair">
+    <button type="button" class="btn prev" [disabled]="index() === 0" (click)="go(index() - 1)">
+      Назад
+    </button>
+    <button
+      type="button"
+      class="btn next"
+      [disabled]="index() === questions().length - 1"
+      (click)="go(index() + 1)"
+    >
+      Далі
+    </button>
+  </div>
+
+  <nav class="card grid" aria-label="Питання тесту">
+    @for (state of states(); track $index) {
+      <button
+        type="button"
+        class="cell"
+        [attr.data-state]="state"
+        [attr.aria-current]="$index === index() ? 'step' : null"
+        [attr.aria-label]="'Питання ' + ($index + 1) + ': ' + stateLabels[state]"
+        (click)="go($index)"
+      >
+        {{ $index + 1 }}
+      </button>
+    }
+  </nav>
+
+  @if (confirming() && unanswered() > 0) {
+    <div #confirmPanel class="confirm card" role="alertdialog" aria-labelledby="finish-question">
+      <p id="finish-question">
+        Питань без відповіді: {{ unanswered() }}. Вони зарахуються як неправильні. Завершити тест?
+      </p>
+      <div class="pair">
+        <button type="button" class="btn btn-primary" (click)="finish()">Завершити</button>
+        <button type="button" class="btn" (click)="confirming.set(false)">Продовжити тест</button>
+      </div>
+    </div>
+  } @else {
+    <button type="button" class="btn btn-ghost finish" (click)="requestFinish()">
+      Завершити тест
+    </button>
+  }
+}

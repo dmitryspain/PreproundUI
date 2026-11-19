@@ -1,0 +1,154 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+}
+
+.score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.percent {
+  font-size: var(--fs-hero);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: var(--heading-tracking);
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  margin-left: 2px;
+  color: var(--ink-3);
+  font-size: 0.5em;
+  font-weight: 700;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.summary .progress {
+  height: 8px;
+}
+
+.topics {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+// Weak topics stand out: the bar, the dot and the score take the colour of the band.
+.topic {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-3);
+
+  &[data-band='low'] {
+    --fill: var(--neg);
+  }
+
+  &[data-band='mid'] {
+    --fill: var(--warn);
+  }
+
+  &[data-band='high'] {
+    --fill: var(--pos);
+  }
+
+  .progress {
+    grid-column: 1 / -1;
+  }
+}
+
+.topic-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: var(--sp-2);
+    border-radius: 50%;
+    background: var(--fill);
+  }
+}
+
+.topic-score {
+  color: var(--fill);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.reviews {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gap);
+  margin-top: var(--sp-4);
+}
+
+.reviews-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+}
+
+.reviews-title {
+  font-size: var(--fs-xl);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  color: var(--ink-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-3);
+}
+
+.review-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.text {
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.explanation {
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+
+.empty {
+  text-align: center;
+}

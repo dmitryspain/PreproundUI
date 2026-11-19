@@ -1,0 +1,107 @@
+@let score = result().score;
+<section class="card summary">
+  <div class="score">
+    <p class="percent glow">{{ score.percent }}<span class="unit">%</span></p>
+    <div class="facts">
+      <p class="count pill pill-lg">{{ score.correct }} з {{ score.total }}</p>
+      <p class="elapsed pill pill-lg">Витрачений час: {{ elapsed() }}</p>
+    </div>
+  </div>
+  <span class="progress" aria-hidden="true">
+    <span class="progress-fill" [style.width.%]="score.percent"></span>
+  </span>
+</section>
+
+<section class="card" aria-labelledby="topics-title">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title" id="topics-title">Теми</h2>
+      <p class="card-sub">Від найслабшої до найсильнішої.</p>
+    </div>
+  </div>
+  <ul class="topics">
+    @for (topic of result().topics; track topic.topicId) {
+      <li class="topic" [attr.data-band]="band(topic)">
+        <span class="topic-title">{{ topic.title }}</span>
+        <span class="topic-score">{{ topic.correct }} / {{ topic.total }}</span>
+        <span class="progress" aria-hidden="true">
+          <span class="progress-fill" [style.width.%]="share(topic)"></span>
+        </span>
+      </li>
+    }
+  </ul>
+</section>
+
+<ng-content />
+
+@if (result().review !== null) {
+  <section class="reviews" aria-labelledby="review-title">
+    <div class="reviews-head">
+      <h2 class="reviews-title" id="review-title">Розбір</h2>
+      <label class="check">
+        <input
+          #mistakesBox
+          class="switch"
+          type="checkbox"
+          role="switch"
+          [checked]="onlyMistakes()"
+          (change)="onlyMistakes.set(mistakesBox.checked)"
+        />
+        Лише помилки ({{ mistakes() }})
+      </label>
+    </div>
+
+    @for (entry of shown(); track entry.item.question.id) {
+      @let item = entry.item;
+      @let question = item.question;
+      @let answered = item.selectedKeys.length > 0;
+      <article class="card review">
+        <div class="review-top">
+          <p class="meta eyebrow">
+            Питання {{ entry.number }} · {{ item.topicTitle }} · {{ item.levelTitle }}
+          </p>
+          <p
+            class="verdict pill"
+            [class.right]="item.correct"
+            [class.pos]="item.correct"
+            [class.neg]="!item.correct && answered"
+            [class.warn]="!item.correct && !answered"
+          >
+            {{ item.correct ? 'Правильно' : answered ? 'Неправильно' : 'Без відповіді' }}
+          </p>
+        </div>
+
+        <p class="text content-text" [innerHTML]="question.text | contentText"></p>
+        @if (question.code; as code) {
+          <pre class="code"><code>{{ code.source }}</code></pre>
+        }
+
+        <ul class="options answers locked">
+          @for (option of question.options; track option.key) {
+            @let isSelected = entry.selected.has(option.key);
+            <li
+              class="option answer"
+              [class.selected]="isSelected"
+              [class.correct]="option.isCorrect"
+              [class.wrong]="isSelected && !option.isCorrect"
+            >
+              <span class="option-text content-text" [innerHTML]="option.text | contentText"></span>
+              @if (isSelected) {
+                <span class="tag pill">ваша відповідь</span>
+              }
+              @if (option.isCorrect) {
+                <span class="tag pill pos">правильна</span>
+              }
+            </li>
+          }
+        </ul>
+
+        <p class="explanation content-text" [innerHTML]="question.explanation | contentText"></p>
+      </article>
+    } @empty {
+      @if (onlyMistakes()) {
+        <p class="card empty muted">Помилок немає.</p>
+      }
+    }
+  </section>
+}

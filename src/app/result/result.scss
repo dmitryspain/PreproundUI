@@ -1,0 +1,18 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.page-head {
+  margin-bottom: var(--sp-2);
+}
+
+.actions {
+  display: grid;
+  gap: var(--sp-2);
+
+  .btn {
+    min-height: 52px;
+  }
+}

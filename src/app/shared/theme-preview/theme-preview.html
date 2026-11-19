@@ -1,0 +1,21 @@
+@if (theme() === 'auto') {
+  <div class="mini" [attr.data-theme]="autoDark"><ng-container *ngTemplateOutlet="screen" /></div>
+  <div class="mini split" [attr.data-theme]="autoLight">
+    <ng-container *ngTemplateOutlet="screen" />
+  </div>
+} @else {
+  <div class="mini" [attr.data-theme]="theme()"><ng-container *ngTemplateOutlet="screen" /></div>
+}
+
+<!-- A question of a test: counter and timer, the text, three options with the right one marked, the button. -->
+<ng-template #screen>
+  <div class="bar">
+    <span>7 / 20</span>
+    <i class="timer"><i class="left"></i></i>
+  </div>
+  <i class="text"></i>
+  <span class="option"><i class="mark"></i><i class="line"></i></span>
+  <span class="option right"><i class="mark"></i><i class="line"></i></span>
+  <span class="option"><i class="mark"></i><i class="line"></i></span>
+  <i class="button"></i>
+</ng-template>

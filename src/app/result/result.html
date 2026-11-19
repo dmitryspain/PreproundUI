@@ -1,0 +1,23 @@
+<header class="page-head">
+  <p class="eyebrow">Тест завершено</p>
+  <h1 class="page-title">Результат</h1>
+</header>
+
+@if (view; as view) {
+  <app-result-view [result]="view">
+    <div class="actions">
+      @if (retryError(); as message) {
+        <p class="callout error" role="alert">{{ message }}</p>
+      }
+      <button
+        type="button"
+        class="btn btn-primary btn-wrap"
+        [disabled]="retrying()"
+        (click)="retry()"
+      >
+        Пройти ще раз з тими самими налаштуваннями
+      </button>
+      <a class="btn btn-wrap" routerLink="/">Нові налаштування</a>
+    </div>
+  </app-result-view>
+}
