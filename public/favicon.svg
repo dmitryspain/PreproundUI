@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28">
+  <!-- The header logo mark (app.scss, .logo-mark) in the default Aurora accent:
+       oklch(0.76 0.15 285) → oklch(0.76 0.15 330), converted to sRGB. -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a8a2ff"/>
+      <stop offset="1" stop-color="#e68cde"/>
+    </linearGradient>
+  </defs>
+  <rect width="28" height="28" rx="10" fill="url(#g)"/>
+  <path d="M14 19.75A5.75 5.75 0 1 1 19.75 14" fill="none" stroke="#0b0821" stroke-width="2.5"/>
+  <circle cx="14" cy="14" r="2" fill="#0b0821"/>
+</svg>

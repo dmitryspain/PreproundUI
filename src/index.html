@@ -7,7 +7,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#060913">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- The header logo mark. SVG for current browsers, .ico (16/32/48) as the fallback, PNG for the iOS home screen. -->
+  <link rel="icon" href="favicon.ico" sizes="48x48">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <!-- Sets the saved theme before the first paint; PrefsService takes over once Angular starts. -->
   <script src="theme-init.js"></script>
 </head>
