@@ -1,8 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
+import { timer } from 'rxjs';
 import { ApiService, errorText } from '../core/api.service';
-import { SECONDS_PER_QUESTION } from '../core/config';
+import { SECONDS_PER_QUESTION, SLOW_CATALOG_HINT_MS } from '../core/config';
 import {
   DEFAULT_QUESTIONS,
   MAX_QUESTIONS,
@@ -42,6 +43,8 @@ export class Setup {
   /** `null` while loading and after a failed load (then `loadError` is set). */
   protected readonly catalog = signal<Catalog | null>(null);
   protected readonly loadError = signal<string | null>(null);
+  /** The catalog takes longer than `SLOW_CATALOG_HINT_MS`; shown only while it still loads. */
+  protected readonly slowCatalog = signal(false);
 
   protected readonly fieldId = signal<string | null>(null);
   protected readonly directionId = signal<string | null>(null);
@@ -117,11 +120,15 @@ export class Setup {
   });
 
   constructor() {
+    const slow = timer(SLOW_CATALOG_HINT_MS)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.slowCatalog.set(true));
     this.api
       .getCatalog()
       .pipe(takeUntilDestroyed())
       .subscribe({
         next: (catalog) => {
+          slow.unsubscribe();
           this.catalog.set(catalog);
           // With a single field its step is hidden, so it has to be selected for the user.
           const first = catalog.fields[0];
@@ -129,7 +136,10 @@ export class Setup {
             this.selectField(first.id);
           }
         },
-        error: (error: unknown) => this.loadError.set(errorText(error)),
+        error: (error: unknown) => {
+          slow.unsubscribe();
+          this.loadError.set(errorText(error));
+        },
       });
   }
 

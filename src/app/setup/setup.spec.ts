@@ -323,6 +323,107 @@ describe('Setup page', () => {
     expect(text(fixture)).not.toContain('Завантаження…');
   });
 
+  describe('cold start hint (PRP-022)', () => {
+    const SLOW = 'Сервер прокидається після простою — це може тривати до хвилини.';
+    const muted = (fixture: ComponentFixture<Setup>) =>
+      [...root(fixture).querySelectorAll('p.muted')].map((p) => p.textContent?.trim());
+
+    // On before the component exists: RxJS `timer` reads the global setInterval when it subscribes.
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    /** Zoneless: the view is checked explicitly, because the scheduler's own timers are fake as well. */
+    function create(): ComponentFixture<Setup> {
+      const fixture = TestBed.createComponent(Setup);
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    async function wait(fixture: ComponentFixture<Setup>, ms: number): Promise<void> {
+      await vi.advanceTimersByTimeAsync(ms);
+      fixture.detectChanges();
+    }
+
+    it('appears under "Завантаження…" at 5 s, not at 4.9 s, while the catalog does not answer', async () => {
+      api.catalog = () => NEVER;
+      const fixture = create();
+
+      await wait(fixture, 4900);
+      expect(muted(fixture)).toEqual(['Завантаження…']);
+
+      await wait(fixture, 100);
+      expect(muted(fixture)).toEqual(['Завантаження…', SLOW]);
+    });
+
+    it('goes away together with "Завантаження…" when the catalog arrives after 5 s', async () => {
+      const catalog = new Subject<Catalog>();
+      api.catalog = () => catalog;
+      const fixture = create();
+      await wait(fixture, 5000);
+      expect(text(fixture)).toContain(SLOW);
+
+      catalog.next(seedCatalog());
+      fixture.detectChanges();
+
+      expect(text(fixture)).not.toContain(SLOW);
+      expect(text(fixture)).not.toContain('Завантаження…');
+      expect(selects(fixture)).toHaveLength(2);
+    });
+
+    it('goes away together with "Завантаження…" when the catalog fails after 5 s', async () => {
+      const catalog = new Subject<Catalog>();
+      api.catalog = () => catalog;
+      const fixture = create();
+      await wait(fixture, 5000);
+      expect(text(fixture)).toContain(SLOW);
+
+      catalog.error(new ApiError("Не вдалося зв'язатися із сервером."));
+      fixture.detectChanges();
+
+      expect(root(fixture).querySelector('[role="alert"]')?.textContent?.trim()).toBe("Не вдалося зв'язатися із сервером.");
+      expect(text(fixture)).not.toContain(SLOW);
+      expect(text(fixture)).not.toContain('Завантаження…');
+    });
+
+    it('never appears when the catalog answers within 5 s, and its timer is cancelled', async () => {
+      const catalog = new Subject<Catalog>();
+      api.catalog = () => catalog;
+      const fixture = create();
+      await wait(fixture, 1000);
+
+      catalog.next(seedCatalog());
+      await wait(fixture, 1);
+      expect(vi.getTimerCount()).toBe(0);
+
+      await wait(fixture, 10_000);
+      expect(text(fixture)).not.toContain(SLOW);
+    });
+
+    it('cancels its timer when the catalog fails within 5 s', async () => {
+      const catalog = new Subject<Catalog>();
+      api.catalog = () => catalog;
+      const fixture = create();
+      await wait(fixture, 1000);
+
+      catalog.error(new ApiError("Не вдалося зв'язатися із сервером."));
+      await wait(fixture, 1);
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('cancels its timer when the page is left before the catalog answers', async () => {
+      api.catalog = () => NEVER;
+      const fixture = create();
+      await wait(fixture, 1000);
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+      fixture.destroy();
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
+  });
+
   it('hides the field step for a single field and shows it, first field selected, for several', async () => {
     const single = await render();
     expect(text(single)).not.toContain('Галузь');
