@@ -1,0 +1,5 @@
+@if (next(); as target) {
+  <button type="button" class="btn btn-ghost language" [attr.lang]="target.id" (click)="toggle()">
+    {{ target.name | t }}
+  </button>
+}

@@ -1,0 +1,22 @@
+:host {
+  display: contents;
+}
+
+// Not `.switch`, the global checkbox toggle. Smaller than the settings link next to it,
+// so the whole header fits a 390 px phone in either language.
+.language {
+  padding-inline: var(--sp-2);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+
+  &:hover {
+    color: var(--ink);
+  }
+}
+
+// Together with the narrow header of app.scss: below 390 px the header would scroll sideways.
+@media (max-width: 389px) {
+  .language {
+    padding-inline: var(--sp-1);
+  }
+}
