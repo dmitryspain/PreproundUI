@@ -3,12 +3,13 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { App } from './app';
 import { TestSessionService } from './core/test-session.service';
+import { BROWSER_LANGUAGES } from './core/i18n/languages';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), { provide: BROWSER_LANGUAGES, useValue: ['uk'] }],
     })
       .compileComponents();
   });
@@ -43,6 +44,7 @@ describe('App header', () => {
           { path: 'settings', component: Blank },
         ]),
         { provide: TestSessionService, useValue: { inProgress } },
+        { provide: BROWSER_LANGUAGES, useValue: ['uk'] },
       ],
     });
   });

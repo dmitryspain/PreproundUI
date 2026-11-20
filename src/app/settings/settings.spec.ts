@@ -5,6 +5,7 @@ import { PREFS_KEY, PrefsService } from '../core/prefs.service';
 import { AppStorage, STORAGE } from '../core/storage';
 import { DEFAULT_HUES } from '../core/themes';
 import { Settings } from './settings';
+import { BROWSER_LANGUAGES } from '../core/i18n/languages';
 
 class MemoryStorage implements AppStorage {
   readonly values = new Map<string, unknown>();
@@ -48,6 +49,7 @@ describe('Settings', () => {
       providers: [
         { provide: STORAGE, useValue: storage },
         { provide: MEDIA, useValue: media },
+        { provide: BROWSER_LANGUAGES, useValue: ['uk'] },
       ],
     });
     prefs = TestBed.inject(PrefsService);
@@ -57,7 +59,7 @@ describe('Settings', () => {
   }
 
   const radios = (page: HTMLElement) =>
-    Array.from(page.querySelectorAll<HTMLButtonElement>('[role=radio]'));
+    Array.from(page.querySelectorAll<HTMLButtonElement>('.themes [role=radio]'));
   const accentButtons = (page: HTMLElement) =>
     Array.from(page.querySelectorAll<HTMLButtonElement>('.swatches button'));
   const slider = (page: HTMLElement) => page.querySelector<HTMLInputElement>('input[type=range]')!;

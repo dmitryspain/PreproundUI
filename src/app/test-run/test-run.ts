@@ -13,6 +13,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CLOCK } from '../core/clock';
 import { formatDuration } from '../core/format';
 import { grade } from '../core/grading';
+import { TPipe, TpPipe } from '../core/i18n/pipes';
+import { MessageKey } from '../core/i18n/translate';
 import { Answers, Question } from '../core/models';
 import { TestSessionService } from '../core/test-session.service';
 import { ContentTextPipe } from '../shared/content-text.pipe';
@@ -20,16 +22,17 @@ import { ContentTextPipe } from '../shared/content-text.pipe';
 /** State of a question in the number grid (spec 3.2). */
 type QuestionState = 'unanswered' | 'answered' | 'correct' | 'incorrect';
 
-const STATE_LABELS: Readonly<Record<QuestionState, string>> = {
-  unanswered: 'без відповіді',
-  answered: 'з відповіддю',
-  correct: 'перевірено, правильно',
-  incorrect: 'перевірено, неправильно',
+/** Dictionary keys of the states, for the labels of the grid cells. */
+const STATE_LABELS: Readonly<Record<QuestionState, MessageKey>> = {
+  unanswered: 'test.state.unanswered',
+  answered: 'test.state.answered',
+  correct: 'test.state.correct',
+  incorrect: 'test.state.incorrect',
 };
 
-/** The test itself (spec 3.2): one question at a time, "Перевірити" locks the answer, one timer for the whole test. */
+/** The test itself (spec 3.2): one question at a time, `test.check` locks the answer, one timer for the whole test. */
 @Component({
-  imports: [ContentTextPipe],
+  imports: [ContentTextPipe, TPipe, TpPipe],
   selector: 'app-test-run',
   styleUrl: './test-run.scss',
   templateUrl: './test-run.html',

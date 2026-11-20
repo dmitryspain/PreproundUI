@@ -9,7 +9,7 @@
     @let left = remaining();
     @if (left !== null) {
       <p class="timer pill pill-lg" role="timer" [class.neg]="left < 60">
-        Залишилось {{ formatDuration(left) }}
+        {{ 'test.timeLeft' | t: { time: formatDuration(left) } }}
       </p>
     }
   </div>
@@ -29,10 +29,10 @@
       <fieldset
         class="options answers"
         [class.locked]="isLocked"
-        [attr.aria-label]="question.type === 'single' ? 'Варіанти відповіді' : null"
+        [attr.aria-label]="question.type === 'single' ? ('test.options' | t) : null"
       >
         @if (question.type === 'multiple') {
-          <legend class="hint">Кілька правильних відповідей</legend>
+          <legend class="hint">{{ 'test.multiple' | t }}</legend>
         }
         @for (option of question.options; track option.key) {
           @let isSelected = selected().has(option.key);
@@ -53,7 +53,7 @@
             />
             <span class="option-text content-text" [innerHTML]="option.text | contentText"></span>
             @if (isLocked && option.isCorrect) {
-              <span class="tag pill pos">правильна</span>
+              <span class="tag pill pos">{{ 'answer.correct' | t }}</span>
             }
           </label>
         }
@@ -62,7 +62,7 @@
       @if (isLocked) {
         <section class="feedback callout" [class.pos]="correct()" [class.neg]="!correct()">
           <p class="verdict" role="status" [class.right]="correct()">
-            {{ correct() ? 'Правильно' : 'Неправильно' }}
+            {{ (correct() ? 'verdict.correct' : 'verdict.incorrect') | t }}
           </p>
           <p class="explanation content-text" [innerHTML]="question.explanation | contentText"></p>
         </section>
@@ -74,14 +74,14 @@
         [disabled]="isLocked || selected().size === 0"
         (click)="check()"
       >
-        Перевірити
+        {{ 'test.check' | t }}
       </button>
     </article>
   }
 
   <div class="pair">
     <button type="button" class="btn prev" [disabled]="index() === 0" (click)="go(index() - 1)">
-      Назад
+      {{ 'test.previous' | t }}
     </button>
     <button
       type="button"
@@ -89,18 +89,18 @@
       [disabled]="index() === questions().length - 1"
       (click)="go(index() + 1)"
     >
-      Далі
+      {{ 'test.next' | t }}
     </button>
   </div>
 
-  <nav class="card grid" aria-label="Питання тесту">
+  <nav class="card grid" [attr.aria-label]="'test.grid' | t">
     @for (state of states(); track $index) {
       <button
         type="button"
         class="cell"
         [attr.data-state]="state"
         [attr.aria-current]="$index === index() ? 'step' : null"
-        [attr.aria-label]="'Питання ' + ($index + 1) + ': ' + stateLabels[state]"
+        [attr.aria-label]="'test.cell' | t: { number: $index + 1, state: (stateLabels[state] | t) }"
         (click)="go($index)"
       >
         {{ $index + 1 }}
@@ -111,16 +111,20 @@
   @if (confirming() && unanswered() > 0) {
     <div #confirmPanel class="confirm card" role="alertdialog" aria-labelledby="finish-question">
       <p id="finish-question">
-        Питань без відповіді: {{ unanswered() }}. Вони зарахуються як неправильні. Завершити тест?
+        {{ unanswered() | tp: 'test.confirm' }}
       </p>
       <div class="pair">
-        <button type="button" class="btn btn-primary" (click)="finish()">Завершити</button>
-        <button type="button" class="btn" (click)="confirming.set(false)">Продовжити тест</button>
+        <button type="button" class="btn btn-primary" (click)="finish()">
+          {{ 'test.confirmFinish' | t }}
+        </button>
+        <button type="button" class="btn" (click)="confirming.set(false)">
+          {{ 'test.continue' | t }}
+        </button>
       </div>
     </div>
   } @else {
     <button type="button" class="btn btn-ghost finish" (click)="requestFinish()">
-      Завершити тест
+      {{ 'test.finish' | t }}
     </button>
   }
 }

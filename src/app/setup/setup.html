@@ -1,6 +1,6 @@
 <header class="page-head">
-  <p class="eyebrow">Підготовка до співбесіди</p>
-  <h1 class="page-title">Налаштування тесту</h1>
+  <p class="eyebrow">{{ 'setup.eyebrow' | t }}</p>
+  <h1 class="page-title">{{ 'setup.title' | t }}</h1>
 </header>
 
 @if (loadError(); as message) {
@@ -10,15 +10,15 @@
     <section class="card" aria-labelledby="step-stack">
       <div class="card-head">
         <div>
-          <h2 class="card-title" id="step-stack">Напрям і стек</h2>
-          <p class="card-sub">Стек підставить свої теми, а додати можна будь-яку.</p>
+          <h2 class="card-title" id="step-stack">{{ 'setup.stackStep.title' | t }}</h2>
+          <p class="card-sub">{{ 'setup.stackStep.sub' | t }}</p>
         </div>
       </div>
 
       <div class="fields">
         @if (catalog.fields.length > 1) {
           <label class="field">
-            <span class="label">Галузь</span>
+            <span class="label">{{ 'setup.field' | t }}</span>
             <select #fieldSelect class="input" (change)="selectField(fieldSelect.value)">
               @for (candidate of catalog.fields; track candidate.id) {
                 <option [value]="candidate.id" [selected]="candidate.id === field.id">
@@ -30,9 +30,11 @@
         }
 
         <label class="field">
-          <span class="label">Напрям</span>
+          <span class="label">{{ 'setup.direction' | t }}</span>
           <select #directionSelect class="input" (change)="selectDirection(directionSelect.value)">
-            <option value="" [selected]="!directionId()">Виберіть напрям</option>
+            <option value="" [selected]="!directionId()">
+              {{ 'setup.directionPlaceholder' | t }}
+            </option>
             @for (direction of field.directions; track direction.id) {
               <option [value]="direction.id" [selected]="direction.id === directionId()">
                 {{ direction.title }}
@@ -42,14 +44,14 @@
         </label>
 
         <label class="field">
-          <span class="label">Стек</span>
+          <span class="label">{{ 'setup.stack' | t }}</span>
           <select
             #stackSelect
             class="input"
             [disabled]="!direction()"
             (change)="selectStack(stackSelect.value)"
           >
-            <option value="" [selected]="!stackId()">Виберіть стек</option>
+            <option value="" [selected]="!stackId()">{{ 'setup.stackPlaceholder' | t }}</option>
             @for (stack of direction()?.stacks ?? []; track stack.id) {
               <option [value]="stack.id" [selected]="stack.id === stackId()">
                 {{ stack.title }}
@@ -63,8 +65,8 @@
     <section class="card" aria-labelledby="step-levels">
       <div class="card-head">
         <div>
-          <h2 class="card-title" id="step-levels">Рівні</h2>
-          <p class="card-sub">Один або кілька.</p>
+          <h2 class="card-title" id="step-levels">{{ 'setup.levelsStep.title' | t }}</h2>
+          <p class="card-sub">{{ 'setup.levelsStep.sub' | t }}</p>
         </div>
       </div>
 
@@ -88,13 +90,13 @@
     <section class="card" aria-labelledby="step-topics">
       <div class="card-head">
         <div>
-          <h2 class="card-title" id="step-topics">Питання й теми</h2>
-          <p class="card-sub">Порівну між темами, кожну можна змінити вручну.</p>
+          <h2 class="card-title" id="step-topics">{{ 'setup.topicsStep.title' | t }}</h2>
+          <p class="card-sub">{{ 'setup.topicsStep.sub' | t }}</p>
         </div>
       </div>
 
       <label class="total">
-        <span class="label">Кількість питань</span>
+        <span class="label">{{ 'setup.total' | t }}</span>
         <input
           #totalInput
           class="input number"
@@ -108,7 +110,9 @@
         />
       </label>
       @if (!totalInRange()) {
-        <p class="field-error">Від {{ minQuestions }} до {{ maxQuestions }} питань.</p>
+        <p class="field-error">
+          {{ maxQuestions | tp: 'setup.totalRange' : { min: minQuestions } }}
+        </p>
       }
 
       <ul class="topics">
@@ -116,7 +120,9 @@
           <li class="topic" [class.inactive]="row.max === 0">
             <span class="topic-main">
               <span class="topic-title">{{ row.topic.title }}</span>
-              <span class="muted">{{ row.max > 0 ? 'макс. ' + row.max : '0 питань' }}</span>
+              <span class="muted">{{
+                row.max > 0 ? ('setup.topicMax' | t: { max: row.max }) : ('setup.topicNone' | t)
+              }}</span>
             </span>
             @if (row.max > 0) {
               <input
@@ -128,21 +134,21 @@
                 [max]="row.max"
                 [value]="row.count || ''"
                 [class.invalid]="row.count < 1 || row.count > row.max"
-                [attr.aria-label]="'Питань з теми ' + row.topic.title"
+                [attr.aria-label]="'setup.topicCount' | t: { topic: row.topic.title }"
                 (input)="setCount(row.topic.id, countInput.valueAsNumber)"
               />
             }
             <button
               type="button"
               class="btn btn-ghost remove"
-              [attr.aria-label]="'Прибрати тему ' + row.topic.title"
+              [attr.aria-label]="'setup.removeTopic' | t: { topic: row.topic.title }"
               (click)="removeTopic(row.topic.id)"
             >
               ×
             </button>
           </li>
         } @empty {
-          <li class="empty muted">Виберіть стек або додайте тему.</li>
+          <li class="empty muted">{{ 'setup.noTopics' | t }}</li>
         }
       </ul>
 
@@ -152,7 +158,7 @@
         [attr.aria-expanded]="addingTopic()"
         (click)="toggleAddingTopic()"
       >
-        Додати тему
+        {{ 'setup.addTopic' | t }}
       </button>
       @if (addingTopic()) {
         <div class="add-topic">
@@ -160,8 +166,8 @@
             #searchInput
             class="input"
             type="search"
-            placeholder="Пошук за назвою"
-            aria-label="Пошук теми за назвою"
+            [placeholder]="'setup.searchPlaceholder' | t"
+            [attr.aria-label]="'setup.searchLabel' | t"
             [value]="query()"
             (input)="query.set(searchInput.value)"
           />
@@ -173,7 +179,7 @@
                 </button>
               </li>
             } @empty {
-              <li class="muted">Нічого не знайдено.</li>
+              <li class="muted">{{ 'setup.nothingFound' | t }}</li>
             }
           </ul>
         </div>
@@ -181,7 +187,16 @@
 
       <div class="summary" [attr.data-state]="distribution()">
         <p>
-          Розподілено <strong>{{ distributed() }}</strong> з {{ total() }}
+          @for (
+            part of 'setup.distributed' | rich: { distributed: distributed(), total: total() };
+            track $index
+          ) {
+            @if (part.bold) {
+              <strong>{{ part.text }}</strong>
+            } @else {
+              <span>{{ part.text }}</span>
+            }
+          }
         </p>
         <span class="progress" aria-hidden="true">
           <span class="progress-fill" [style.width.%]="distributedShare()"></span>
@@ -189,17 +204,17 @@
       </div>
       <!-- Only once a topic is picked: with none, the empty list already says what to do. -->
       @if (rows().length > 0 && total() > available()) {
-        <p class="hint callout warn">
-          Додайте тем або рівнів (доступно питань: {{ available() }}).
-        </p>
+        <p class="hint callout warn">{{ available() | tp: 'setup.notEnough' }}</p>
       }
     </section>
 
     <section class="card">
       <label class="toggle">
-        <span class="card-title"
-          >Таймер: {{ timerEnabled() ? timerMinutes() + ' хв' : 'вимкнено' }}</span
-        >
+        <span class="card-title">{{
+          timerEnabled()
+            ? ('setup.timerOn' | t: { minutes: timerMinutes() })
+            : ('setup.timerOff' | t)
+        }}</span>
         <input
           #timerBox
           class="switch"
@@ -209,9 +224,7 @@
           (change)="timerEnabled.set(timerBox.checked)"
         />
       </label>
-      <p class="card-sub">
-        Один на весь тест. Коли час вийде, питання без відповіді стануть неправильними.
-      </p>
+      <p class="card-sub">{{ 'setup.timerSub' | t }}</p>
     </section>
 
     @if (startError(); as message) {
@@ -223,14 +236,14 @@
       [disabled]="!canStart()"
       (click)="start()"
     >
-      Почати
+      {{ 'setup.start' | t }}
     </button>
   } @else {
-    <p class="muted">Каталог порожній.</p>
+    <p class="muted">{{ 'setup.emptyCatalog' | t }}</p>
   }
 } @else {
-  <p class="muted">Завантаження…</p>
+  <p class="muted">{{ 'common.loading' | t }}</p>
   @if (slowCatalog()) {
-    <p class="muted">Сервер прокидається після простою — це може тривати до хвилини.</p>
+    <p class="muted">{{ 'setup.slowCatalog' | t }}</p>
   }
 }

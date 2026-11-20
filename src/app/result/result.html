@@ -1,6 +1,6 @@
 <header class="page-head">
-  <p class="eyebrow">Тест завершено</p>
-  <h1 class="page-title">Результат</h1>
+  <p class="eyebrow">{{ 'result.eyebrow' | t }}</p>
+  <h1 class="page-title">{{ 'result.title' | t }}</h1>
 </header>
 
 @if (view; as view) {
@@ -15,9 +15,9 @@
         [disabled]="retrying()"
         (click)="retry()"
       >
-        Пройти ще раз з тими самими налаштуваннями
+        {{ 'result.retry' | t }}
       </button>
-      <a class="btn btn-wrap" routerLink="/">Нові налаштування</a>
+      <a class="btn btn-wrap" routerLink="/">{{ 'result.newSetup' | t }}</a>
     </div>
   </app-result-view>
 }

@@ -1,3 +1,5 @@
+import type { MessageKey } from './i18n/messages/uk';
+
 /** A theme of the interface: a set of tokens under `[data-theme="…"]` in `src/styles/_themes.scss`. */
 export type ThemeId = 'aurora' | 'daylight' | 'terminal';
 
@@ -6,24 +8,24 @@ export type ThemeChoice = ThemeId | 'auto';
 
 export interface ThemeInfo {
   id: ThemeId;
-  /** In Latin letters, as a brand name. */
+  /** In Latin letters, as a brand name: the same in every language. */
   name: string;
-  description: string;
+  descriptionKey: MessageKey;
   scheme: 'dark' | 'light';
 }
 
 export const THEMES: readonly ThemeInfo[] = [
+  { id: 'aurora', name: 'Aurora', descriptionKey: 'theme.aurora.description', scheme: 'dark' },
   {
-    id: 'aurora',
-    name: 'Aurora',
-    description: 'Темна скляна, з живим градієнтним сяйвом',
-    scheme: 'dark',
+    id: 'daylight',
+    name: 'Daylight',
+    descriptionKey: 'theme.daylight.description',
+    scheme: 'light',
   },
-  { id: 'daylight', name: 'Daylight', description: 'Світла, чиста й точна', scheme: 'light' },
   {
     id: 'terminal',
     name: 'Terminal',
-    description: 'Моноширинний термінал із фосфорним сяйвом',
+    descriptionKey: 'theme.terminal.description',
     scheme: 'dark',
   },
 ];
@@ -32,24 +34,33 @@ export const THEMES: readonly ThemeInfo[] = [
 export const AUTO_DARK: ThemeId = 'aurora';
 export const AUTO_LIGHT: ThemeId = 'daylight';
 
-/** `auto` as an option of the theme picker, next to {@link THEMES}. */
+/** `auto` as an option of the theme picker, next to {@link THEMES}; unlike a theme, its name is translated. */
 export const AUTO_THEME = {
   id: 'auto',
-  name: 'Авто',
-  description: 'Як у системі: темна — Aurora, світла — Daylight',
-} as const satisfies { id: ThemeChoice; name: string; description: string };
+  nameKey: 'theme.auto.name',
+  descriptionKey: 'theme.auto.description',
+} as const satisfies { id: ThemeChoice; nameKey: MessageKey; descriptionKey: MessageKey };
+
+/** Stable id of an accent preset; its name in each language is `accent.<id>` in the dictionaries. */
+export type AccentId =
+  'violet' | 'indigo' | 'sky' | 'emerald' | 'lime' | 'amber' | 'coral' | 'raspberry';
 
 /** Accent hues (OKLCH hue angle). Lightness and chroma come from the active theme. */
-export const ACCENT_PRESETS: readonly { name: string; hue: number }[] = [
-  { name: 'Фіалковий', hue: 285 },
-  { name: 'Індиго', hue: 265 },
-  { name: 'Блакитний', hue: 225 },
-  { name: 'Смарагд', hue: 160 },
-  { name: 'Лайм', hue: 120 },
-  { name: 'Бурштин', hue: 75 },
-  { name: 'Кораловий', hue: 28 },
-  { name: 'Малиновий', hue: 350 },
+export const ACCENT_PRESETS: readonly { id: AccentId; hue: number }[] = [
+  { id: 'violet', hue: 285 },
+  { id: 'indigo', hue: 265 },
+  { id: 'sky', hue: 225 },
+  { id: 'emerald', hue: 160 },
+  { id: 'lime', hue: 120 },
+  { id: 'amber', hue: 75 },
+  { id: 'coral', hue: 28 },
+  { id: 'raspberry', hue: 350 },
 ];
+
+/** Dictionary key of the accent's name. */
+export function accentNameKey(id: AccentId): `accent.${AccentId}` {
+  return `accent.${id}`;
+}
 
 /**
  * The theme's own accent hue, used to position the hue slider when the user has not picked one.

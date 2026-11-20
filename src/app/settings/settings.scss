@@ -56,6 +56,18 @@
   }
 }
 
+// Each language is named in its own language (`lang` on the button), so the chips never change their text.
+.languages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.language {
+  height: 44px;
+  padding-inline: var(--sp-4);
+}
+
 .swatches {
   display: flex;
   flex-wrap: wrap;

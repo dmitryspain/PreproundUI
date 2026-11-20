@@ -162,6 +162,7 @@
 }
 
 .chip[aria-pressed='true'],
+.chip[aria-checked='true'],
 .chip:has(> input:checked) {
   background: var(--accent-soft);
   color: var(--ink);

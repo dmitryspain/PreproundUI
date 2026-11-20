@@ -1,5 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { BROWSER_LANGUAGES, DEFAULT_LANGUAGE, LANGUAGES, LanguageId } from './i18n/languages';
+import { translate } from './i18n/translate';
 import { MEDIA, Media } from './media';
 import { PREFS_KEY, PrefsService } from './prefs.service';
 import { AppStorage, STORAGE } from './storage';
@@ -395,6 +397,184 @@ describe('PrefsService', () => {
       expect(transitions.calls).toBe(0);
       expect(root.getAttribute('data-theme')).toBe('terminal');
       expect(root.classList.contains('theme-vt')).toBe(false);
+    });
+  });
+
+  describe('language', () => {
+    interface Options {
+      saved?: string;
+      browser?: readonly string[];
+      languages?: readonly LanguageId[];
+      fallback?: LanguageId;
+    }
+
+    /** Both languages and `en` by default, as in the dev and test environment. */
+    function start({
+      saved,
+      browser = [],
+      languages = ['uk', 'en'],
+      fallback = 'en',
+    }: Options = {}): PrefsService {
+      if (saved !== undefined) {
+        storage.raw.set(PREFS_KEY, saved);
+      }
+      TestBed.configureTestingModule({
+        providers: [
+          { provide: STORAGE, useValue: storage },
+          { provide: MEDIA, useValue: media },
+          { provide: BROWSER_LANGUAGES, useValue: browser },
+          { provide: LANGUAGES, useValue: languages },
+          { provide: DEFAULT_LANGUAGE, useValue: fallback },
+        ],
+      });
+      return TestBed.inject(PrefsService);
+    }
+
+    beforeEach(() => {
+      root.lang = 'xx';
+    });
+
+    describe('without a saved choice', () => {
+      it.each([
+        [['uk-UA', 'en'], 'uk'],
+        [['en-GB'], 'en'],
+        [['EN-gb', 'uk'], 'en'],
+        [['de-DE', 'en-US', 'uk'], 'en'],
+        [['uk'], 'uk'],
+      ] as const)('browser %j → %s, on <html lang> too', (browser, expected) => {
+        const prefs = start({ browser });
+
+        expect(prefs.language()).toBe(expected);
+        expect(root.lang).toBe(expected);
+        expect(storage.writes).toEqual([]);
+      });
+
+      it.each([
+        [['de-DE'], 'en'],
+        [['de-DE'], 'uk'],
+        [[], 'en'],
+        [[], 'uk'],
+        [['ukr', 'english'], 'uk'],
+      ] as const)('browser %j → DEFAULT_LANGUAGE %s', (browser, fallback) => {
+        const prefs = start({ browser, fallback });
+
+        expect(prefs.language()).toBe(fallback);
+        expect(root.lang).toBe(fallback);
+      });
+    });
+
+    describe('with a saved choice', () => {
+      it('a saved en wins over a browser that prefers uk', () => {
+        const prefs = start({
+          saved: '{"theme":"auto","accent":null,"language":"en"}',
+          browser: ['uk'],
+        });
+
+        expect(prefs.language()).toBe('en');
+        expect(root.lang).toBe('en');
+      });
+
+      it.each([
+        [['uk-UA'], 'uk'],
+        [['en-GB'], 'en'],
+        [['de-DE'], 'en'],
+      ] as const)('a saved de is ignored: browser %j → %s', (browser, expected) => {
+        const prefs = start({ saved: '{"theme":"auto","accent":null,"language":"de"}', browser });
+
+        expect(prefs.language()).toBe(expected);
+      });
+
+      it('a saved en in a build with only uk gives uk, even with an en browser and an en default', () => {
+        const prefs = start({
+          saved: '{"theme":"auto","accent":null,"language":"en"}',
+          browser: ['en-US'],
+          languages: ['uk'],
+          fallback: 'en',
+        });
+
+        expect(prefs.language()).toBe('uk');
+        expect(root.lang).toBe('uk');
+      });
+
+      it('an old record without language applies the theme and the accent, and the language follows the browser', () => {
+        const prefs = start({
+          saved: '{"theme":"terminal","accent":120}',
+          browser: ['en-GB'],
+          fallback: 'uk',
+        });
+
+        expect(prefs.theme()).toBe('terminal');
+        expect(prefs.accent()).toBe(120);
+        expect(root.getAttribute('data-theme')).toBe('terminal');
+        expect(accentOnHtml()).toBe('120');
+        expect(prefs.language()).toBe('en');
+        expect(root.lang).toBe('en');
+        expect(storage.writes).toEqual([]);
+      });
+    });
+
+    describe('setLanguage', () => {
+      it("setLanguage('en') saves the language next to the same theme and accent and sets <html lang>", () => {
+        const prefs = start({ saved: '{"theme":"terminal","accent":120}', browser: ['uk'] });
+        expect(prefs.language()).toBe('uk');
+        expect(translate('test.check')).toBe('Перевірити');
+
+        prefs.setLanguage('en');
+
+        expect(prefs.language()).toBe('en');
+        expect(root.lang).toBe('en');
+        expect(translate('test.check')).toBe('Check');
+        expect(storage.stored()).toEqual({ theme: 'terminal', accent: 120, language: 'en' });
+        expect(root.getAttribute('data-theme')).toBe('terminal');
+        expect(accentOnHtml()).toBe('120');
+      });
+
+      it("setLanguage('de') changes neither the storage nor <html lang>", () => {
+        const prefs = start({ saved: '{"theme":"terminal","accent":120}', browser: ['uk'] });
+
+        prefs.setLanguage('de' as LanguageId);
+
+        expect(prefs.language()).toBe('uk');
+        expect(root.lang).toBe('uk');
+        expect(storage.writes).toEqual([]);
+      });
+
+      it('ignores a language the build does not offer', () => {
+        const prefs = start({ browser: ['uk'], languages: ['uk'] });
+
+        prefs.setLanguage('en');
+
+        expect(prefs.language()).toBe('uk');
+        expect(root.lang).toBe('uk');
+        expect(storage.writes).toEqual([]);
+      });
+
+      it('saves the language on screen once the user picks it, and a theme change keeps it', () => {
+        const prefs = start({ browser: ['en-GB'] });
+
+        prefs.setLanguage('en');
+        expect(storage.stored()).toEqual({ theme: 'auto', accent: null, language: 'en' });
+
+        prefs.setTheme('daylight');
+        expect(storage.stored()).toEqual({ theme: 'daylight', accent: null, language: 'en' });
+      });
+
+      it('a theme change without a picked language does not save the browser language', () => {
+        const prefs = start({ browser: ['uk-UA'] });
+
+        prefs.setAccent(28);
+
+        expect(storage.stored()).toEqual({ theme: 'auto', accent: 28 });
+      });
+
+      it('the next start reads the saved language back', () => {
+        start({ browser: ['uk'] }).setLanguage('en');
+        TestBed.resetTestingModule();
+
+        const prefs = start({ browser: ['uk'] });
+
+        expect(prefs.language()).toBe('en');
+      });
     });
   });
 });

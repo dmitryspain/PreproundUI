@@ -2,9 +2,29 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
-import { ApiService } from './api.service';
+import { ApiService, errorText } from './api.service';
 import { API_BASE_URL } from './config';
+import { BROWSER_LANGUAGES, LanguageId } from './i18n/languages';
 import { ApiError } from './models';
+import { AppStorage, STORAGE } from './storage';
+
+/** Keeps `setLanguage` and the prefs away from the real localStorage. */
+class MemoryStorage implements AppStorage {
+  readonly values = new Map<string, unknown>();
+
+  get<T>(key: string): T | null {
+    return (this.values.get(key) as T | undefined) ?? null;
+  }
+
+  set(key: string, value: unknown): boolean {
+    this.values.set(key, structuredClone(value));
+    return true;
+  }
+
+  remove(key: string): void {
+    this.values.delete(key);
+  }
+}
 
 describe('ApiService.health', () => {
   const baseUrl = 'https://api.test/api';
@@ -63,7 +83,14 @@ describe('ApiService.getCatalog and createTest', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), { provide: API_BASE_URL, useValue: baseUrl }],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: API_BASE_URL, useValue: baseUrl },
+        { provide: STORAGE, useValue: new MemoryStorage() },
+        // The text checked below is Ukrainian, and jsdom prefers en-US.
+        { provide: BROWSER_LANGUAGES, useValue: ['uk'] },
+      ],
     });
     api = TestBed.inject(ApiService);
     http = TestBed.inject(HttpTestingController);
@@ -160,58 +187,6 @@ describe('ApiService.getCatalog and createTest', () => {
     });
   });
 
-  const failures: [name: string, fail: (request: TestRequest) => void, text: string][] = [
-    [
-      '400 {code, message} → the message',
-      (r) => r.flush({ code: 'Test.NotEnoughQuestions', message: 'У темі немає стільки питань.' }, { status: 400, statusText: 'Bad Request' }),
-      'У темі немає стільки питань.',
-    ],
-    [
-      '400 ProblemDetails without message → the general text',
-      (r) => r.flush({ type: 'about:blank', title: 'One or more validation errors occurred.', status: 400 }, { status: 400, statusText: 'Bad Request' }),
-      'Сервер не зміг обробити запит. Спробуйте пізніше.',
-    ],
-    [
-      '400 with an empty message → the general text',
-      (r) => r.flush({ code: 'X.Y', message: '  ' }, { status: 400, statusText: 'Bad Request' }),
-      'Сервер не зміг обробити запит. Спробуйте пізніше.',
-    ],
-    [
-      '500 → the general text',
-      (r) => r.flush({ message: 'Npgsql exploded' }, { status: 500, statusText: 'Server Error' }),
-      'Сервер не зміг обробити запит. Спробуйте пізніше.',
-    ],
-    [
-      '429 → too many requests',
-      (r) => r.flush(null, { status: 429, statusText: 'Too Many Requests' }),
-      'Забагато запитів. Спробуйте за хвилину.',
-    ],
-    [
-      'no answer (status 0) → cannot reach the server',
-      (r) => r.error(new ProgressEvent('error')),
-      "Не вдалося зв'язатися із сервером.",
-    ],
-  ];
-
-  for (const [name, fail, text] of failures) {
-    it(`getCatalog: ${name}`, async () => {
-      const result = firstValueFrom(api.getCatalog());
-      fail(http.expectOne(`${baseUrl}/catalog`));
-
-      await expect(result).rejects.toEqual(new ApiError(text));
-      await expect(result).rejects.toBeInstanceOf(ApiError);
-    });
-
-    it(`createTest: ${name}`, async () => {
-      const result = firstValueFrom(
-        api.createTest({ fieldId: 'it', levelIds: ['l'], topics: [{ topicId: 't', count: 10 }], excludeQuestionIds: [] }),
-      );
-      fail(http.expectOne(`${baseUrl}/tests`));
-
-      await expect(result).rejects.toEqual(new ApiError(text));
-    });
-  }
-
   it('reports a 200 body that breaks the contract with the general text, not a TypeError', async () => {
     const result = firstValueFrom(api.getCatalog());
     http.expectOne(`${baseUrl}/catalog`).flush({ unexpected: true });
@@ -219,3 +194,115 @@ describe('ApiService.getCatalog and createTest', () => {
     await expect(result).rejects.toEqual(new ApiError('Сервер не зміг обробити запит. Спробуйте пізніше.'));
   });
 });
+
+/** The texts the user sees, per language: worded by status and `code`, never by the server's `message` (ADR 006). */
+const TEXTS: Record<LanguageId, Record<'catalogChanged' | 'rejected' | 'tooManyRequests' | 'network' | 'server', string>> = {
+  uk: {
+    catalogChanged: 'Каталог оновився. Оновіть сторінку й перевірте розподіл.',
+    rejected: 'Сервер відхилив налаштування тесту.',
+    tooManyRequests: 'Забагато запитів. Спробуйте за хвилину.',
+    network: "Не вдалося зв'язатися із сервером.",
+    server: 'Сервер не зміг обробити запит. Спробуйте пізніше.',
+  },
+  en: {
+    catalogChanged: 'The catalog has been updated. Reload the page and check the distribution.',
+    rejected: 'The server rejected the test settings.',
+    tooManyRequests: 'Too many requests. Try again in a minute.',
+    network: 'Could not reach the server.',
+    server: 'The server could not process the request. Try again later.',
+  },
+};
+
+/** A `message` no case may show: the interface words every error itself. */
+const BODY_MESSAGE = 'У темі немає стільки питань (server message)';
+
+const badRequest = { status: 400, statusText: 'Bad Request' };
+
+const failures: [name: string, fail: (request: TestRequest) => void, text: keyof (typeof TEXTS)['uk']][] = [
+  ['400 Test.NotEnoughQuestions', (r) => r.flush({ code: 'Test.NotEnoughQuestions', message: BODY_MESSAGE }, badRequest), 'catalogChanged'],
+  ['400 Test.FieldNotFound', (r) => r.flush({ code: 'Test.FieldNotFound', message: BODY_MESSAGE }, badRequest), 'catalogChanged'],
+  ['400 Test.UnknownLevel', (r) => r.flush({ code: 'Test.UnknownLevel', message: BODY_MESSAGE }, badRequest), 'catalogChanged'],
+  ['400 Test.UnknownTopic', (r) => r.flush({ code: 'Test.UnknownTopic', message: BODY_MESSAGE }, badRequest), 'catalogChanged'],
+  ['400 Test.CountTooSmall', (r) => r.flush({ code: 'Test.CountTooSmall', message: BODY_MESSAGE }, badRequest), 'rejected'],
+  ['400 with a code in another case', (r) => r.flush({ code: 'test.notenoughquestions', message: BODY_MESSAGE }, badRequest), 'rejected'],
+  [
+    '400 ProblemDetails without message',
+    (r) => r.flush({ type: 'about:blank', title: 'One or more validation errors occurred.', status: 400 }, badRequest),
+    'rejected',
+  ],
+  ['400 with an empty body', (r) => r.flush(null, badRequest), 'rejected'],
+  ['429', (r) => r.flush({ code: 'Test.NotEnoughQuestions', message: BODY_MESSAGE }, { status: 429, statusText: 'Too Many Requests' }), 'tooManyRequests'],
+  ['500 with a catalog code', (r) => r.flush({ code: 'Test.NotEnoughQuestions', message: BODY_MESSAGE }, { status: 500, statusText: 'Server Error' }), 'server'],
+  ['404', (r) => r.flush({ message: BODY_MESSAGE }, { status: 404, statusText: 'Not Found' }), 'server'],
+  ['no answer (status 0)', (r) => r.error(new ProgressEvent('error')), 'network'],
+];
+
+for (const language of ['uk', 'en'] as const) {
+  describe(`ApiService errors in ${language}`, () => {
+    const baseUrl = 'https://api.test/api';
+    let api: ApiService;
+    let http: HttpTestingController;
+
+    beforeEach(() => {
+      TestBed.configureTestingModule({
+        providers: [
+          provideHttpClient(),
+          provideHttpClientTesting(),
+          { provide: API_BASE_URL, useValue: baseUrl },
+          { provide: STORAGE, useValue: new MemoryStorage() },
+          { provide: BROWSER_LANGUAGES, useValue: [language] },
+        ],
+      });
+      api = TestBed.inject(ApiService);
+      http = TestBed.inject(HttpTestingController);
+    });
+
+    afterEach(() => http.verify());
+
+    async function failure(result: Promise<unknown>): Promise<ApiError> {
+      try {
+        await result;
+      } catch (error) {
+        return error as ApiError;
+      }
+      throw new Error('expected the request to fail');
+    }
+
+    for (const [name, fail, text] of failures) {
+      it(`getCatalog: ${name} → errors.${text}`, async () => {
+        const result = firstValueFrom(api.getCatalog());
+        fail(http.expectOne(`${baseUrl}/catalog`));
+
+        const error = await failure(result);
+        expect(error).toBeInstanceOf(ApiError);
+        expect(error.message).toBe(TEXTS[language][text]);
+        expect(error.message).not.toContain(BODY_MESSAGE);
+      });
+
+      it(`createTest: ${name} → errors.${text}`, async () => {
+        const result = firstValueFrom(
+          api.createTest({ fieldId: 'it', levelIds: ['l'], topics: [{ topicId: 't', count: 10 }], excludeQuestionIds: [] }),
+        );
+        fail(http.expectOne(`${baseUrl}/tests`));
+
+        const error = await failure(result);
+        expect(error).toBeInstanceOf(ApiError);
+        expect(error.message).toBe(TEXTS[language][text]);
+        expect(error.message).not.toContain(BODY_MESSAGE);
+      });
+    }
+
+    it('a 200 body that breaks the contract gives errors.server, not a TypeError', async () => {
+      const result = firstValueFrom(api.getCatalog());
+      http.expectOne(`${baseUrl}/catalog`).flush({ unexpected: true });
+
+      await expect(result).rejects.toEqual(new ApiError(TEXTS[language].server));
+    });
+
+    it('errorText keeps an ApiError and words anything else as errors.server', () => {
+      expect(errorText(new ApiError('kept as is'))).toBe('kept as is');
+      expect(errorText(new TypeError('x is undefined'))).toBe(TEXTS[language].server);
+      expect(errorText(undefined)).toBe(TEXTS[language].server);
+    });
+  });
+}

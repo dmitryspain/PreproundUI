@@ -1,18 +1,18 @@
 <header class="head">
-  <p class="eyebrow">Персоналізація</p>
-  <h1 class="page-title">Налаштування</h1>
+  <p class="eyebrow">{{ 'settings.eyebrow' | t }}</p>
+  <h1 class="page-title">{{ 'settings.title' | t }}</h1>
 </header>
 
 <section class="card" aria-labelledby="theme-title">
   <div class="card-head">
     <div>
-      <h2 class="card-title" id="theme-title">Тема оформлення</h2>
-      <p class="card-sub">Зберігається лише на цьому пристрої.</p>
+      <h2 class="card-title" id="theme-title">{{ 'settings.theme.title' | t }}</h2>
+      <p class="card-sub">{{ 'settings.savedOnDevice' | t }}</p>
     </div>
   </div>
 
   <div class="themes" role="radiogroup" aria-labelledby="theme-title">
-    @for (option of themes; track option.id) {
+    @for (option of themes(); track option.id) {
       <button
         type="button"
         role="radio"
@@ -33,10 +33,8 @@
 <section class="card" aria-labelledby="accent-title">
   <div class="card-head">
     <div>
-      <h2 class="card-title" id="accent-title">Акцентний колір</h2>
-      <p class="card-sub">
-        Колір кнопок і виділень. Яскравість підбирає тема, тож текст лишається читабельним.
-      </p>
+      <h2 class="card-title" id="accent-title">{{ 'settings.accent.title' | t }}</h2>
+      <p class="card-sub">{{ 'settings.accent.sub' | t }}</p>
     </div>
   </div>
 
@@ -47,9 +45,9 @@
       [attr.aria-pressed]="prefs.accent() === null"
       (click)="prefs.setAccent(null)"
     >
-      Колір теми
+      {{ 'settings.accent.reset' | t }}
     </button>
-    @for (preset of accents; track preset.hue) {
+    @for (preset of accents(); track preset.id) {
       <button
         type="button"
         class="swatch"
@@ -69,8 +67,35 @@
     min="0"
     max="360"
     step="1"
-    aria-label="Відтінок акценту"
+    [attr.aria-label]="'settings.accent.hue' | t"
     [value]="hue()"
     (input)="setHue(hueInput.valueAsNumber)"
   />
 </section>
+
+<!-- Only when the build offers more than one language (ADR 006); the header has the one-tap switch too. -->
+@if (languages.length > 0) {
+  <section class="card" aria-labelledby="language-title">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title" id="language-title">{{ 'settings.language.title' | t }}</h2>
+        <p class="card-sub">{{ 'settings.savedOnDevice' | t }}</p>
+      </div>
+    </div>
+
+    <div class="languages" role="radiogroup" aria-labelledby="language-title">
+      @for (language of languages; track language.id) {
+        <button
+          type="button"
+          role="radio"
+          class="chip language"
+          [attr.lang]="language.id"
+          [attr.aria-checked]="i18n.language() === language.id"
+          (click)="i18n.setLanguage(language.id)"
+        >
+          {{ language.name | t }}
+        </button>
+      }
+    </div>
+  </section>
+}

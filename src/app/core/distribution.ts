@@ -50,7 +50,7 @@ export function distribute(total: number, topics: readonly { max: number }[]): n
   return counts;
 }
 
-/** Questions given to the active topics: X in "Розподілено X з Y". */
+/** Questions given to the active topics: X in `setup.distributed` ("Distributed X of Y"). */
 export function distributedCount(topics: readonly TopicShare[]): number {
   return topics.filter(isActive).reduce((sum, topic) => sum + topic.count, 0);
 }

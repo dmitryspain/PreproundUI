@@ -1,7 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { timer } from 'rxjs';
+import { Observable, Subject, catchError, map, merge, of, switchMap, takeWhile, timer } from 'rxjs';
 import { ApiService, errorText } from '../core/api.service';
 import { SECONDS_PER_QUESTION, SLOW_CATALOG_HINT_MS } from '../core/config';
 import {
@@ -15,6 +15,9 @@ import {
   maxFor,
   validate,
 } from '../core/distribution';
+import { I18n } from '../core/i18n/i18n.service';
+import { LanguageId } from '../core/i18n/languages';
+import { RichPipe, TPipe, TpPipe } from '../core/i18n/pipes';
 import { Catalog, Level, TestSetup, Topic } from '../core/models';
 import { TestSessionService } from '../core/test-session.service';
 
@@ -25,9 +28,13 @@ interface TopicRow {
   count: number;
 }
 
+/** What one catalog request brings: the cold start hint while it waits, then its answer. */
+type CatalogEvent =
+  { kind: 'slow' } | { kind: 'loaded'; catalog: Catalog } | { kind: 'failed'; message: string };
+
 /** Start page: the user builds a test from the catalog (spec 3.1). */
 @Component({
-  imports: [],
+  imports: [TPipe, TpPipe, RichPipe],
   selector: 'app-setup',
   styleUrl: './setup.scss',
   templateUrl: './setup.html',
@@ -36,6 +43,12 @@ export class Setup {
   private readonly api = inject(ApiService);
   private readonly session = inject(TestSessionService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
+
+  /** One per catalog request; a new one drops the answer to the previous, so the last language chosen wins. */
+  private readonly catalogRequests = new Subject<void>();
+  /** Language of the last catalog request: a switch to another one loads the catalog again. */
+  private requestedLanguage: LanguageId | null = null;
 
   protected readonly minQuestions = MIN_QUESTIONS;
   protected readonly maxQuestions = MAX_QUESTIONS;
@@ -45,6 +58,11 @@ export class Setup {
   protected readonly loadError = signal<string | null>(null);
   /** The catalog takes longer than `SLOW_CATALOG_HINT_MS`; shown only while it still loads. */
   protected readonly slowCatalog = signal(false);
+  /**
+   * A catalog request has no answer yet. After a language switch the previous catalog stays on screen
+   * meanwhile, but no test starts from it: its titles would be in the other language.
+   */
+  private readonly catalogLoading = signal(false);
 
   protected readonly fieldId = signal<string | null>(null);
   protected readonly directionId = signal<string | null>(null);
@@ -80,7 +98,7 @@ export class Setup {
   });
 
   protected readonly distributed = computed(() => distributedCount(this.rows()));
-  /** Width of the "Розподілено X з Y" bar, in percent; never past the end. */
+  /** Width of the `setup.distributed` bar ("Distributed X of Y"), in percent; never past the end. */
   protected readonly distributedShare = computed(() => {
     const total = this.total();
     return total > 0 ? Math.min(100, (this.distributed() * 100) / total) : 0;
@@ -116,31 +134,44 @@ export class Setup {
 
   protected readonly canStart = computed(() => {
     const setup = this.setup();
-    return setup !== null && validate(setup) && !this.starting();
+    return setup !== null && validate(setup) && !this.starting() && !this.catalogLoading();
   });
 
   constructor() {
-    const slow = timer(SLOW_CATALOG_HINT_MS)
-      .pipe(takeUntilDestroyed())
-      .subscribe(() => this.slowCatalog.set(true));
-    this.api
-      .getCatalog()
-      .pipe(takeUntilDestroyed())
-      .subscribe({
-        next: (catalog) => {
-          slow.unsubscribe();
-          this.catalog.set(catalog);
-          // With a single field its step is hidden, so it has to be selected for the user.
-          const first = catalog.fields[0];
-          if (first) {
-            this.selectField(first.id);
-          }
-        },
-        error: (error: unknown) => {
-          slow.unsubscribe();
-          this.loadError.set(errorText(error));
-        },
+    this.catalogRequests
+      .pipe(
+        switchMap(() => this.fetchCatalog()),
+        takeUntilDestroyed(),
+      )
+      .subscribe((event) => {
+        switch (event.kind) {
+          case 'slow':
+            this.slowCatalog.set(true);
+            break;
+          case 'loaded':
+            this.catalogLoading.set(false);
+            this.applyCatalog(event.catalog);
+            break;
+          case 'failed':
+            // The same state as a failed first load, in the language of this request.
+            this.catalogLoading.set(false);
+            this.catalog.set(null);
+            this.loadError.set(event.message);
+            break;
+        }
       });
+    // Sent at once, not from the effect below: the request starts together with the page.
+    this.requestCatalog();
+
+    // The catalog in the language on screen (spec 3.7): the API takes the language of the moment of the request.
+    effect(() => {
+      const language = this.i18n.language();
+      untracked(() => {
+        if (language !== this.requestedLanguage) {
+          this.requestCatalog();
+        }
+      });
+    });
   }
 
   /** Levels, topics and stack belong to the field, so switching it starts the setup over. */
@@ -240,7 +271,7 @@ export class Setup {
     const setup = this.setup();
     const field = this.field();
     // Checked before anything is awaited, so a double click sends a single request.
-    if (this.starting() || !setup || !field || !validate(setup)) {
+    if (this.starting() || this.catalogLoading() || !setup || !field || !validate(setup)) {
       return;
     }
 
@@ -253,6 +284,79 @@ export class Setup {
       this.startError.set(errorText(error));
     } finally {
       this.starting.set(false);
+    }
+  }
+
+  /** A new request clears the error of the previous one, so whatever comes next is in the language on screen. */
+  private requestCatalog(): void {
+    this.requestedLanguage = this.i18n.language();
+    this.catalogLoading.set(true);
+    this.slowCatalog.set(false);
+    this.loadError.set(null);
+    this.catalogRequests.next();
+  }
+
+  /**
+   * The answer to one request, with the cold start hint before it if it takes long. Completes with the answer,
+   * which cancels the hint's timer; a failure is an event too, so a later language switch can still load.
+   */
+  private fetchCatalog(): Observable<CatalogEvent> {
+    return merge(
+      timer(SLOW_CATALOG_HINT_MS).pipe(map((): CatalogEvent => ({ kind: 'slow' }))),
+      this.api.getCatalog().pipe(
+        map((catalog): CatalogEvent => ({ kind: 'loaded', catalog })),
+        catchError((error: unknown) =>
+          of<CatalogEvent>({ kind: 'failed', message: errorText(error) }),
+        ),
+      ),
+    ).pipe(takeWhile((event) => event.kind === 'slow', true));
+  }
+
+  /**
+   * The first catalog, or one without the selected field, starts the setup on its first field. Any other is
+   * the same catalog in another language (spec 3.7): the choice is kept by id, only titles and maxima change.
+   */
+  private applyCatalog(catalog: Catalog): void {
+    this.catalog.set(catalog);
+    const field = catalog.fields.find((candidate) => candidate.id === this.fieldId());
+    if (!field) {
+      // With a single field its step is hidden, so it has to be selected for the user.
+      const first = catalog.fields[0];
+      if (first) {
+        this.selectField(first.id);
+      }
+      return;
+    }
+
+    const direction = field.directions.find((candidate) => candidate.id === this.directionId());
+    this.directionId.set(direction?.id ?? null);
+    this.stackId.set(direction?.stacks.find((stack) => stack.id === this.stackId())?.id ?? null);
+
+    const scale = byRank(field.levels).map((level) => level.id);
+    const selected = this.selectedLevels();
+    const kept = scale.filter((id) => selected.has(id));
+    const levelIds = kept.length > 0 ? kept : scale;
+    this.levelIds.set(levelIds);
+
+    // Values above the new maximum drop to it (spec 3.1, item 5), so a topic without questions
+    // in this language gets 0 and turns inactive.
+    const topics = new Map(field.topics.map((topic) => [topic.id, topic]));
+    const rows = this.rows();
+    const before = rows.filter((row) => topics.has(row.topic.id));
+    const after = before.map((row) => {
+      const topic = topics.get(row.topic.id)!;
+      const max = maxFor(topic, levelIds);
+      return { topic, max, count: Math.min(row.count, max) };
+    });
+    this.rows.set(after);
+
+    // As after a level change: a topic that just got questions joins the distribution, as if it had been added,
+    // and so does a set of topics that lost one.
+    if (
+      after.length < rows.length ||
+      after.some((row, index) => isActive(row) && !isActive(before[index]))
+    ) {
+      this.redistribute();
     }
   }
 

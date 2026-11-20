@@ -1,5 +1,6 @@
 import { Component, computed, input, signal } from '@angular/core';
 import { formatDuration } from '../core/format';
+import { TPipe } from '../core/i18n/pipes';
 import { Question, Score } from '../core/models';
 import { ContentTextPipe } from '../shared/content-text.pipe';
 
@@ -53,7 +54,7 @@ export interface ResultViewModel {
  * Content between the topics and the review (the page's buttons) is projected, so it stays above a long review.
  */
 @Component({
-  imports: [ContentTextPipe],
+  imports: [ContentTextPipe, TPipe],
   selector: 'app-result-view',
   styleUrl: './result-view.scss',
   templateUrl: './result-view.html',

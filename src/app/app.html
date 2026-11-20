@@ -1,20 +1,24 @@
 <header class="header">
   <div class="header-bar">
-    <!-- No links while a test runs: its answers live only in the test page, and leaving it loses them. -->
+    <!-- No links while a test runs: its answers live only in the test page, and leaving it loses them.
+         No language switch either, so a test never changes its language halfway (ADR 006). -->
     @if (sessions.inProgress()) {
       <span class="logo glow"><span class="logo-mark" aria-hidden="true"></span>Prepround</span>
     } @else {
       <a class="logo glow" routerLink="/"
         ><span class="logo-mark" aria-hidden="true"></span>Prepround</a
       >
-      <a
-        class="btn btn-ghost nav-link"
-        routerLink="/settings"
-        routerLinkActive="active"
-        ariaCurrentWhenActive="page"
-      >
-        Налаштування
-      </a>
+      <div class="header-actions">
+        <app-language-switch />
+        <a
+          class="btn btn-ghost nav-link"
+          routerLink="/settings"
+          routerLinkActive="active"
+          ariaCurrentWhenActive="page"
+        >
+          {{ 'nav.settings' | t }}
+        </a>
+      </div>
     }
   </div>
 </header>

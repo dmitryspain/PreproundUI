@@ -77,7 +77,17 @@
   }
 }
 
+// The language switch and the settings link sit together at the right edge.
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
 .nav-link {
+  // Narrower than a regular button: with the language switch the header still fits 390 px in the Terminal font.
+  padding-inline: var(--sp-3);
   color: var(--ink-2);
 
   &:hover,
@@ -87,6 +97,20 @@
 
   &.active {
     background: var(--surface-2);
+  }
+}
+
+// Below 390 px the header scrolled sideways (the Ukrainian settings link in the monospace Terminal font
+// is the widest): a tighter gap and a link as small as the language switch keep it inside the page padding.
+// Wider screens keep the look above.
+@media (max-width: 389px) {
+  .header-bar {
+    gap: var(--sp-2);
+  }
+
+  .nav-link {
+    padding-inline: var(--sp-2);
+    font-size: var(--fs-sm);
   }
 }
 

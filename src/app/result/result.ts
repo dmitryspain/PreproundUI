@@ -2,13 +2,14 @@ import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { errorText } from '../core/api.service';
 import { breakdownByTopic } from '../core/grading';
+import { TPipe } from '../core/i18n/pipes';
 import { TestResult } from '../core/models';
 import { TestSession, TestSessionService } from '../core/test-session.service';
 import { ResultView, ResultViewModel } from './result-view';
 
 /** `/result`: the test that was just finished (spec 3.4). The route opens only when there is a result. */
 @Component({
-  imports: [ResultView, RouterLink],
+  imports: [ResultView, RouterLink, TPipe],
   selector: 'app-result',
   styleUrl: './result.scss',
   templateUrl: './result.html',
@@ -27,7 +28,7 @@ export class Result {
   protected readonly retrying = signal(false);
   protected readonly retryError = signal<string | null>(null);
 
-  /** The same path as "Почати": `start` is the only place that builds the request, so the body repeats as is. */
+  /** The same path as `setup.start`: `start` is the only place that builds the request, so the body repeats as is. */
   protected async retry(): Promise<void> {
     const session = this.session;
     // Checked before anything is awaited, so a double click sends a single request.

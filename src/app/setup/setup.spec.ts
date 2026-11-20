@@ -9,6 +9,7 @@ import { API_BASE_URL } from '../core/config';
 import { ApiError, Catalog, Field, Test, TestRequest, Topic } from '../core/models';
 import { TestSessionService } from '../core/test-session.service';
 import { Setup } from './setup';
+import { BROWSER_LANGUAGES } from '../core/i18n/languages';
 
 @Component({ template: '' })
 class StubTestPage {}
@@ -87,6 +88,7 @@ describe('Setup page', () => {
         ]),
         { provide: ApiService, useValue: api },
         { provide: ErrorHandler, useValue: errors },
+        { provide: BROWSER_LANGUAGES, useValue: ['uk'] },
       ],
     });
   });
@@ -609,6 +611,7 @@ describe('Setup page with the real ApiService', () => {
         provideHttpClientTesting(),
         { provide: API_BASE_URL, useValue: 'https://api.test/api' },
         { provide: ErrorHandler, useValue: errors },
+        { provide: BROWSER_LANGUAGES, useValue: ['uk'] },
       ],
     });
     const fixture = TestBed.createComponent(Setup);

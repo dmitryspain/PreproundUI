@@ -3,8 +3,10 @@
   <div class="score">
     <p class="percent glow">{{ score.percent }}<span class="unit">%</span></p>
     <div class="facts">
-      <p class="count pill pill-lg">{{ score.correct }} з {{ score.total }}</p>
-      <p class="elapsed pill pill-lg">Витрачений час: {{ elapsed() }}</p>
+      <p class="count pill pill-lg">
+        {{ 'result.score' | t: { correct: score.correct, total: score.total } }}
+      </p>
+      <p class="elapsed pill pill-lg">{{ 'result.elapsed' | t: { time: elapsed() } }}</p>
     </div>
   </div>
   <span class="progress" aria-hidden="true">
@@ -15,8 +17,8 @@
 <section class="card" aria-labelledby="topics-title">
   <div class="card-head">
     <div>
-      <h2 class="card-title" id="topics-title">Теми</h2>
-      <p class="card-sub">Від найслабшої до найсильнішої.</p>
+      <h2 class="card-title" id="topics-title">{{ 'result.topics.title' | t }}</h2>
+      <p class="card-sub">{{ 'result.topics.sub' | t }}</p>
     </div>
   </div>
   <ul class="topics">
@@ -37,7 +39,7 @@
 @if (result().review !== null) {
   <section class="reviews" aria-labelledby="review-title">
     <div class="reviews-head">
-      <h2 class="reviews-title" id="review-title">Розбір</h2>
+      <h2 class="reviews-title" id="review-title">{{ 'result.review' | t }}</h2>
       <label class="check">
         <input
           #mistakesBox
@@ -47,7 +49,7 @@
           [checked]="onlyMistakes()"
           (change)="onlyMistakes.set(mistakesBox.checked)"
         />
-        Лише помилки ({{ mistakes() }})
+        {{ 'result.onlyMistakes' | t: { n: mistakes() } }}
       </label>
     </div>
 
@@ -58,7 +60,10 @@
       <article class="card review">
         <div class="review-top">
           <p class="meta eyebrow">
-            Питання {{ entry.number }} · {{ item.topicTitle }} · {{ item.levelTitle }}
+            {{
+              'result.questionMeta'
+                | t: { number: entry.number, topic: item.topicTitle, level: item.levelTitle }
+            }}
           </p>
           <p
             class="verdict pill"
@@ -67,7 +72,14 @@
             [class.neg]="!item.correct && answered"
             [class.warn]="!item.correct && !answered"
           >
-            {{ item.correct ? 'Правильно' : answered ? 'Неправильно' : 'Без відповіді' }}
+            {{
+              (item.correct
+                ? 'verdict.correct'
+                : answered
+                  ? 'verdict.incorrect'
+                  : 'verdict.unanswered'
+              ) | t
+            }}
           </p>
         </div>
 
@@ -87,10 +99,10 @@
             >
               <span class="option-text content-text" [innerHTML]="option.text | contentText"></span>
               @if (isSelected) {
-                <span class="tag pill">ваша відповідь</span>
+                <span class="tag pill">{{ 'answer.yours' | t }}</span>
               }
               @if (option.isCorrect) {
-                <span class="tag pill pos">правильна</span>
+                <span class="tag pill pos">{{ 'answer.correct' | t }}</span>
               }
             </li>
           }
@@ -100,7 +112,7 @@
       </article>
     } @empty {
       @if (onlyMistakes()) {
-        <p class="card empty muted">Помилок немає.</p>
+        <p class="card empty muted">{{ 'result.noMistakes' | t }}</p>
       }
     }
   </section>

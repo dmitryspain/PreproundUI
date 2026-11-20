@@ -9,6 +9,7 @@ import {
   WEAK_BELOW_PERCENT,
   topicBand,
 } from './result-view';
+import { BROWSER_LANGUAGES } from '../core/i18n/languages';
 
 const option = (key: number, isCorrect: boolean, text = `o${key}`) => ({ key, text, isCorrect });
 
@@ -60,6 +61,13 @@ function model(overrides: Partial<ResultViewModel> = {}): ResultViewModel {
 
 describe('ResultView', () => {
   let fixture: ComponentFixture<ResultView>;
+
+  beforeEach(() => {
+    // The texts checked here are Ukrainian, and jsdom prefers en-US.
+    TestBed.configureTestingModule({
+      providers: [{ provide: BROWSER_LANGUAGES, useValue: ['uk'] }],
+    });
+  });
 
   async function render(value: ResultViewModel): Promise<HTMLElement> {
     fixture = TestBed.createComponent(ResultView);

@@ -1,7 +1,10 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of, throwError } from 'rxjs';
 import { API_BASE_URL } from './config';
+import { apiErrorKey } from './i18n/errors';
+import { I18n } from './i18n/i18n.service';
+import { translate } from './i18n/translate';
 import {
   ApiError,
   ApiStatus,
@@ -67,15 +70,14 @@ interface QuestionDto {
   explanation: string;
 }
 
-const NETWORK_ERROR = "Не вдалося зв'язатися із сервером.";
-const TOO_MANY_REQUESTS = 'Забагато запитів. Спробуйте за хвилину.';
-const SERVER_ERROR = 'Сервер не зміг обробити запит. Спробуйте пізніше.';
-
 /** The only place that talks to the API over HTTP. */
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = inject(API_BASE_URL);
+  // Error texts and content come in the language on screen: injecting it here resolves the language
+  // even before any page has rendered.
+  private readonly i18n = inject(I18n);
 
   /** Never errors: an API that cannot be reached is reported as `unavailable`. */
   health(): Observable<ApiStatus> {
@@ -85,15 +87,20 @@ export class ApiService {
     );
   }
 
-  /** Errors only with {@link ApiError}. */
+  /** Errors only with {@link ApiError}. Titles and question counts are in the language on screen (spec 5.1). */
   getCatalog(): Observable<Catalog> {
-    return this.http.get<CatalogDto>(`${this.baseUrl}/catalog`).pipe(
-      map((dto): Catalog => ({ fields: dto.fields.map(toField) })),
-      catchError((error: unknown) => throwError(() => toApiError(error))),
-    );
+    return this.http
+      .get<CatalogDto>(`${this.baseUrl}/catalog`, { params: this.contentParams() })
+      .pipe(
+        map((dto): Catalog => ({ fields: dto.fields.map(toField) })),
+        catchError((error: unknown) => throwError(() => toApiError(error))),
+      );
   }
 
-  /** Errors only with {@link ApiError}; a rejected setup carries the server's own message. */
+  /**
+   * Errors only with {@link ApiError}; a rejected setup is worded by its `code`, never by the server's message.
+   * Questions are in the language on screen, and only translated ones are picked (spec 5.2).
+   */
   createTest(request: TestRequest): Observable<Test> {
     const body: CreateTestDto = {
       fieldId: request.fieldId,
@@ -101,41 +108,42 @@ export class ApiService {
       topics: request.topics.map((topic) => ({ topicId: topic.topicId, count: topic.count })),
       excludeQuestionIds: [...request.excludeQuestionIds],
     };
-    return this.http.post<TestDto>(`${this.baseUrl}/tests`, body).pipe(
-      map((dto): Test => ({ questions: dto.questions.map(toQuestion) })),
-      catchError((error: unknown) => throwError(() => toApiError(error))),
-    );
+    return this.http
+      .post<TestDto>(`${this.baseUrl}/tests`, body, { params: this.contentParams() })
+      .pipe(
+        map((dto): Test => ({ questions: dto.questions.map(toQuestion) })),
+        catchError((error: unknown) => throwError(() => toApiError(error))),
+      );
+  }
+
+  /**
+   * `lang` of a content request (spec 5): the language on screen when the request is made. Added here,
+   * so no caller can forget it; the body never carries it.
+   */
+  private contentParams(): HttpParams {
+    return new HttpParams().set('lang', this.i18n.language());
   }
 }
 
 /** Text for the user from any error, so a page never shows an empty or `undefined` message. */
 export function errorText(error: unknown): string {
-  return error instanceof ApiError ? error.message : SERVER_ERROR;
+  return error instanceof ApiError ? error.message : translate('errors.server');
 }
 
+/** Worded in the language on screen at the moment of the error. */
 function toApiError(error: unknown): ApiError {
   if (error instanceof HttpErrorResponse) {
-    // Status 0 means no answer at all: the API is down, CORS failed or the certificate is not trusted.
-    if (error.status === 0) {
-      return new ApiError(NETWORK_ERROR);
-    }
-    if (error.status === 429) {
-      return new ApiError(TOO_MANY_REQUESTS);
-    }
-    // Only the API's own { code, message } is shown as is; a 400 ProblemDetails from model binding has no message.
-    const message = messageOf(error.error);
-    if (error.status === 400 && message) {
-      return new ApiError(message);
-    }
+    return new ApiError(translate(apiErrorKey(error.status, codeOf(error.error))));
   }
-  // Any other status, or a body that does not match the contract.
-  return new ApiError(SERVER_ERROR);
+  // A body that does not match the contract.
+  return new ApiError(translate('errors.server'));
 }
 
-function messageOf(body: unknown): string | null {
-  if (typeof body === 'object' && body !== null && 'message' in body) {
-    const message = body.message;
-    return typeof message === 'string' && message.trim() !== '' ? message : null;
+/** `code` of the API's own `{ code, message }`; a 400 ProblemDetails from model binding has none. */
+function codeOf(body: unknown): string | null {
+  if (typeof body === 'object' && body !== null && 'code' in body) {
+    const code = body.code;
+    return typeof code === 'string' ? code : null;
   }
   return null;
 }

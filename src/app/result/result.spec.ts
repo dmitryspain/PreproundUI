@@ -8,6 +8,7 @@ import { ApiService } from '../core/api.service';
 import { CLOCK } from '../core/clock';
 import { ApiError, Catalog, Field, Question, Test, TestRequest, TestSetup } from '../core/models';
 import { TestSessionService } from '../core/test-session.service';
+import { BROWSER_LANGUAGES } from '../core/i18n/languages';
 
 /** Records every request; `/` renders Setup, so the catalog never arrives instead of hitting the network. */
 class FakeApi {
@@ -115,6 +116,7 @@ describe('Result page', () => {
         { provide: ApiService, useValue: api },
         { provide: CLOCK, useValue: clock },
         { provide: ErrorHandler, useValue: errors },
+        { provide: BROWSER_LANGUAGES, useValue: ['uk'] },
       ],
     });
     sessions = TestBed.inject(TestSessionService);
