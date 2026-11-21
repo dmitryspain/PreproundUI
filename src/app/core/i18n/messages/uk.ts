@@ -84,6 +84,8 @@ export const uk = {
   'result.title': 'Результат',
   'result.retry': 'Пройти ще раз з тими самими налаштуваннями',
   'result.newSetup': 'Нові налаштування',
+  'result.retryLanguage':
+    'Цією мовою недостатньо питань для цих налаштувань. Змініть їх на сторінці налаштування.',
   'result.score': '{correct} з {total}',
   'result.elapsed': 'Витрачений час: {time}',
   'result.topics.title': 'Теми',

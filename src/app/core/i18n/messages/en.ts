@@ -85,6 +85,8 @@ export const en: Record<MessageKey, Message> = {
   'result.title': 'Result',
   'result.retry': 'Retake with the same settings',
   'result.newSetup': 'Set up a new test',
+  'result.retryLanguage':
+    'There are not enough questions in this language for these settings. Change them on the setup page.',
   'result.score': '{correct} of {total}',
   'result.elapsed': 'Time spent: {time}',
   'result.topics.title': 'Topics',

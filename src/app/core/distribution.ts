@@ -1,4 +1,4 @@
-import { Topic, TopicShare } from './models';
+import { Field, TestSetup, Topic, TopicShare } from './models';
 
 /** Limits of the total number of questions (spec 3.1, item 4); the API checks the same range. */
 export const MIN_QUESTIONS = 10;
@@ -78,4 +78,28 @@ export function validate(setup: { total: number; topics: readonly TopicShare[] }
     ) &&
     distributedCount(active) === total
   );
+}
+
+/**
+ * The same setup against `field` as it is now, such as the catalog in another language (spec 3.7): every topic
+ * of the test gets its maximum again, and a count above it drops to it, as on the setup page. Topics that took
+ * no part stay out. `null` when no test can be built from it any more: a topic of the test has no questions left,
+ * or fewer than `MIN_QUESTIONS` remain together.
+ */
+export function refit(setup: TestSetup, field: Field): TestSetup | null {
+  const topics = new Map(field.topics.map((topic) => [topic.id, topic]));
+  const refitted = setup.topics.map((share) => {
+    if (!isActive(share)) {
+      return share;
+    }
+    const topic = topics.get(share.topicId);
+    const max = topic ? maxFor(topic, setup.levelIds) : 0;
+    return { ...share, max, count: Math.min(share.count, max) };
+  });
+  if (refitted.some((share, index) => isActive(setup.topics[index]) && !isActive(share))) {
+    return null;
+  }
+
+  const result: TestSetup = { ...setup, topics: refitted, total: distributedCount(refitted) };
+  return validate(result) ? result : null;
 }

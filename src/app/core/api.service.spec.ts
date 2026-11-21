@@ -1,9 +1,14 @@
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  TestRequest,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { ApiService, errorText } from './api.service';
 import { API_BASE_URL } from './config';
+import { I18n } from './i18n/i18n.service';
 import { BROWSER_LANGUAGES, LanguageId } from './i18n/languages';
 import { ApiError } from './models';
 import { AppStorage, STORAGE } from './storage';
@@ -33,7 +38,11 @@ describe('ApiService.health', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), { provide: API_BASE_URL, useValue: baseUrl }],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: API_BASE_URL, useValue: baseUrl },
+      ],
     });
     api = TestBed.inject(ApiService);
     http = TestBed.inject(HttpTestingController);
@@ -101,7 +110,7 @@ describe('ApiService.getCatalog and createTest', () => {
   it('maps GET {API_BASE_URL}/catalog to the model, keeping the server order of topics', async () => {
     const catalog = firstValueFrom(api.getCatalog());
 
-    const request = http.expectOne(`${baseUrl}/catalog`);
+    const request = http.expectOne(`${baseUrl}/catalog?lang=uk`);
     expect(request.request.method).toBe('GET');
     request.flush({
       fields: [
@@ -110,7 +119,11 @@ describe('ApiService.getCatalog and createTest', () => {
           title: 'IT',
           levels: [{ id: 'junior', title: 'Junior', rank: 1 }],
           directions: [
-            { id: 'backend', title: 'Backend', stacks: [{ id: 'dotnet', title: '.NET (C#)', topicIds: ['zeta', 'alpha'] }] },
+            {
+              id: 'backend',
+              title: 'Backend',
+              stacks: [{ id: 'dotnet', title: '.NET (C#)', topicIds: ['zeta', 'alpha'] }],
+            },
           ],
           topics: [
             { id: 'zeta', title: 'Zeta', description: 'Z', questionCounts: { junior: 4 } },
@@ -127,7 +140,11 @@ describe('ApiService.getCatalog and createTest', () => {
           title: 'IT',
           levels: [{ id: 'junior', title: 'Junior', rank: 1 }],
           directions: [
-            { id: 'backend', title: 'Backend', stacks: [{ id: 'dotnet', title: '.NET (C#)', topicIds: ['zeta', 'alpha'] }] },
+            {
+              id: 'backend',
+              title: 'Backend',
+              stacks: [{ id: 'dotnet', title: '.NET (C#)', topicIds: ['zeta', 'alpha'] }],
+            },
           ],
           topics: [
             { id: 'zeta', title: 'Zeta', description: 'Z', questionCounts: { junior: 4 } },
@@ -148,7 +165,7 @@ describe('ApiService.getCatalog and createTest', () => {
       }),
     );
 
-    const request = http.expectOne(`${baseUrl}/tests`);
+    const request = http.expectOne(`${baseUrl}/tests?lang=uk`);
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toStrictEqual({
       fieldId: 'it',
@@ -189,14 +206,19 @@ describe('ApiService.getCatalog and createTest', () => {
 
   it('reports a 200 body that breaks the contract with the general text, not a TypeError', async () => {
     const result = firstValueFrom(api.getCatalog());
-    http.expectOne(`${baseUrl}/catalog`).flush({ unexpected: true });
+    http.expectOne(`${baseUrl}/catalog?lang=uk`).flush({ unexpected: true });
 
-    await expect(result).rejects.toEqual(new ApiError('Сервер не зміг обробити запит. Спробуйте пізніше.'));
+    await expect(result).rejects.toEqual(
+      new ApiError('Сервер не зміг обробити запит. Спробуйте пізніше.'),
+    );
   });
 });
 
 /** The texts the user sees, per language: worded by status and `code`, never by the server's `message` (ADR 006). */
-const TEXTS: Record<LanguageId, Record<'catalogChanged' | 'rejected' | 'tooManyRequests' | 'network' | 'server', string>> = {
+const TEXTS: Record<
+  LanguageId,
+  Record<'catalogChanged' | 'rejected' | 'tooManyRequests' | 'network' | 'server', string>
+> = {
   uk: {
     catalogChanged: 'Каталог оновився. Оновіть сторінку й перевірте розподіл.',
     rejected: 'Сервер відхилив налаштування тесту.',
@@ -218,22 +240,74 @@ const BODY_MESSAGE = 'У темі немає стільки питань (server
 
 const badRequest = { status: 400, statusText: 'Bad Request' };
 
-const failures: [name: string, fail: (request: TestRequest) => void, text: keyof (typeof TEXTS)['uk']][] = [
-  ['400 Test.NotEnoughQuestions', (r) => r.flush({ code: 'Test.NotEnoughQuestions', message: BODY_MESSAGE }, badRequest), 'catalogChanged'],
-  ['400 Test.FieldNotFound', (r) => r.flush({ code: 'Test.FieldNotFound', message: BODY_MESSAGE }, badRequest), 'catalogChanged'],
-  ['400 Test.UnknownLevel', (r) => r.flush({ code: 'Test.UnknownLevel', message: BODY_MESSAGE }, badRequest), 'catalogChanged'],
-  ['400 Test.UnknownTopic', (r) => r.flush({ code: 'Test.UnknownTopic', message: BODY_MESSAGE }, badRequest), 'catalogChanged'],
-  ['400 Test.CountTooSmall', (r) => r.flush({ code: 'Test.CountTooSmall', message: BODY_MESSAGE }, badRequest), 'rejected'],
-  ['400 with a code in another case', (r) => r.flush({ code: 'test.notenoughquestions', message: BODY_MESSAGE }, badRequest), 'rejected'],
+const failures: [
+  name: string,
+  fail: (request: TestRequest) => void,
+  text: keyof (typeof TEXTS)['uk'],
+][] = [
+  [
+    '400 Test.NotEnoughQuestions',
+    (r) => r.flush({ code: 'Test.NotEnoughQuestions', message: BODY_MESSAGE }, badRequest),
+    'catalogChanged',
+  ],
+  [
+    '400 Test.FieldNotFound',
+    (r) => r.flush({ code: 'Test.FieldNotFound', message: BODY_MESSAGE }, badRequest),
+    'catalogChanged',
+  ],
+  [
+    '400 Test.UnknownLevel',
+    (r) => r.flush({ code: 'Test.UnknownLevel', message: BODY_MESSAGE }, badRequest),
+    'catalogChanged',
+  ],
+  [
+    '400 Test.UnknownTopic',
+    (r) => r.flush({ code: 'Test.UnknownTopic', message: BODY_MESSAGE }, badRequest),
+    'catalogChanged',
+  ],
+  [
+    '400 Test.CountTooSmall',
+    (r) => r.flush({ code: 'Test.CountTooSmall', message: BODY_MESSAGE }, badRequest),
+    'rejected',
+  ],
+  [
+    '400 with a code in another case',
+    (r) => r.flush({ code: 'test.notenoughquestions', message: BODY_MESSAGE }, badRequest),
+    'rejected',
+  ],
   [
     '400 ProblemDetails without message',
-    (r) => r.flush({ type: 'about:blank', title: 'One or more validation errors occurred.', status: 400 }, badRequest),
+    (r) =>
+      r.flush(
+        { type: 'about:blank', title: 'One or more validation errors occurred.', status: 400 },
+        badRequest,
+      ),
     'rejected',
   ],
   ['400 with an empty body', (r) => r.flush(null, badRequest), 'rejected'],
-  ['429', (r) => r.flush({ code: 'Test.NotEnoughQuestions', message: BODY_MESSAGE }, { status: 429, statusText: 'Too Many Requests' }), 'tooManyRequests'],
-  ['500 with a catalog code', (r) => r.flush({ code: 'Test.NotEnoughQuestions', message: BODY_MESSAGE }, { status: 500, statusText: 'Server Error' }), 'server'],
-  ['404', (r) => r.flush({ message: BODY_MESSAGE }, { status: 404, statusText: 'Not Found' }), 'server'],
+  [
+    '429',
+    (r) =>
+      r.flush(
+        { code: 'Test.NotEnoughQuestions', message: BODY_MESSAGE },
+        { status: 429, statusText: 'Too Many Requests' },
+      ),
+    'tooManyRequests',
+  ],
+  [
+    '500 with a catalog code',
+    (r) =>
+      r.flush(
+        { code: 'Test.NotEnoughQuestions', message: BODY_MESSAGE },
+        { status: 500, statusText: 'Server Error' },
+      ),
+    'server',
+  ],
+  [
+    '404',
+    (r) => r.flush({ message: BODY_MESSAGE }, { status: 404, statusText: 'Not Found' }),
+    'server',
+  ],
   ['no answer (status 0)', (r) => r.error(new ProgressEvent('error')), 'network'],
 ];
 
@@ -271,7 +345,7 @@ for (const language of ['uk', 'en'] as const) {
     for (const [name, fail, text] of failures) {
       it(`getCatalog: ${name} → errors.${text}`, async () => {
         const result = firstValueFrom(api.getCatalog());
-        fail(http.expectOne(`${baseUrl}/catalog`));
+        fail(http.expectOne(`${baseUrl}/catalog?lang=${language}`));
 
         const error = await failure(result);
         expect(error).toBeInstanceOf(ApiError);
@@ -281,9 +355,14 @@ for (const language of ['uk', 'en'] as const) {
 
       it(`createTest: ${name} → errors.${text}`, async () => {
         const result = firstValueFrom(
-          api.createTest({ fieldId: 'it', levelIds: ['l'], topics: [{ topicId: 't', count: 10 }], excludeQuestionIds: [] }),
+          api.createTest({
+            fieldId: 'it',
+            levelIds: ['l'],
+            topics: [{ topicId: 't', count: 10 }],
+            excludeQuestionIds: [],
+          }),
         );
-        fail(http.expectOne(`${baseUrl}/tests`));
+        fail(http.expectOne(`${baseUrl}/tests?lang=${language}`));
 
         const error = await failure(result);
         expect(error).toBeInstanceOf(ApiError);
@@ -294,7 +373,7 @@ for (const language of ['uk', 'en'] as const) {
 
     it('a 200 body that breaks the contract gives errors.server, not a TypeError', async () => {
       const result = firstValueFrom(api.getCatalog());
-      http.expectOne(`${baseUrl}/catalog`).flush({ unexpected: true });
+      http.expectOne(`${baseUrl}/catalog?lang=${language}`).flush({ unexpected: true });
 
       await expect(result).rejects.toEqual(new ApiError(TEXTS[language].server));
     });
@@ -306,3 +385,80 @@ for (const language of ['uk', 'en'] as const) {
     });
   });
 }
+
+/** `lang` of every content request (PRP-028, spec 5): added by the service, never by the caller or in the body. */
+describe('ApiService lang parameter', () => {
+  const baseUrl = 'https://api.test/api';
+  const body = {
+    fieldId: 'it',
+    levelIds: ['middle', 'senior'],
+    topics: [{ topicId: 'ef-core', count: 10 }],
+    excludeQuestionIds: ['ef-core-001'],
+  };
+  let api: ApiService;
+  let http: HttpTestingController;
+  let i18n: I18n;
+
+  function configure(browser: string[]): void {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: API_BASE_URL, useValue: baseUrl },
+        { provide: STORAGE, useValue: new MemoryStorage() },
+        { provide: BROWSER_LANGUAGES, useValue: browser },
+      ],
+    });
+    api = TestBed.inject(ApiService);
+    http = TestBed.inject(HttpTestingController);
+    i18n = TestBed.inject(I18n);
+  }
+
+  afterEach(() => http.verify());
+
+  for (const language of ['uk', 'en'] as const) {
+    it(`in ${language} sends lang=${language} with getCatalog and createTest, and the body of createTest stays as is`, () => {
+      configure([language]);
+      expect(i18n.language()).toBe(language);
+
+      api.getCatalog().subscribe();
+      api.createTest(body).subscribe();
+
+      const catalog = http.expectOne((request) => request.url === `${baseUrl}/catalog`);
+      expect(catalog.request.method).toBe('GET');
+      expect(catalog.request.urlWithParams).toBe(`${baseUrl}/catalog?lang=${language}`);
+      expect(catalog.request.params.getAll('lang')).toEqual([language]);
+      const test = http.expectOne((request) => request.url === `${baseUrl}/tests`);
+      expect(test.request.method).toBe('POST');
+      expect(test.request.urlWithParams).toBe(`${baseUrl}/tests?lang=${language}`);
+      expect(test.request.body).toStrictEqual(body);
+      catalog.flush({ fields: [] });
+      test.flush({ questions: [] });
+    });
+  }
+
+  it('takes the language at the moment of each request, so a switch applies to the next one', () => {
+    configure(['uk']);
+
+    api.getCatalog().subscribe();
+    i18n.setLanguage('en');
+    api.getCatalog().subscribe();
+    api.createTest(body).subscribe();
+
+    const catalogs = http.match((request) => request.url === `${baseUrl}/catalog`);
+    expect(catalogs.map((request) => request.request.urlWithParams)).toEqual([
+      `${baseUrl}/catalog?lang=uk`,
+      `${baseUrl}/catalog?lang=en`,
+    ]);
+    http.expectOne(`${baseUrl}/tests?lang=en`).flush({ questions: [] });
+    catalogs.forEach((request) => request.flush({ fields: [] }));
+  });
+
+  it('health has no lang: it is not a content request', () => {
+    configure(['en']);
+
+    api.health().subscribe();
+
+    expect(http.expectOne(`${baseUrl}/health`).request.params.keys()).toEqual([]);
+  });
+});

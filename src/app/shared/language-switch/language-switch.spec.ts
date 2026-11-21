@@ -70,7 +70,10 @@ const SETUP: TestSetup = {
 };
 
 class FakeApi {
+  catalogCalls = 0;
+
   getCatalog(): Observable<Catalog> {
+    this.catalogCalls++;
     return of({ fields: [FIELD] });
   }
 
@@ -89,6 +92,7 @@ class RecordingErrorHandler implements ErrorHandler {
 describe('Language switch', () => {
   let storage: MemoryStorage;
   let errors: RecordingErrorHandler;
+  let api: FakeApi;
   let fixture: ComponentFixture<App>;
   const root = document.documentElement;
 
@@ -103,7 +107,7 @@ describe('Language switch', () => {
       imports: [App],
       providers: [
         provideRouter(routes),
-        { provide: ApiService, useValue: new FakeApi() },
+        { provide: ApiService, useValue: api },
         { provide: CLOCK, useValue: { now: () => 0, ticks: new Subject<void>() } },
         { provide: STORAGE, useValue: storage },
         { provide: BROWSER_LANGUAGES, useValue: browser },
@@ -127,6 +131,7 @@ describe('Language switch', () => {
   beforeEach(() => {
     storage = new MemoryStorage();
     errors = new RecordingErrorHandler();
+    api = new FakeApi();
     root.lang = 'xx';
   });
 
@@ -163,7 +168,8 @@ describe('Language switch', () => {
     // The same element: the page was not rendered again, only its texts changed.
     expect(page.querySelector('h1')).toBe(title);
     expect(title.textContent?.trim()).toBe('Test setup');
-    expect(page.textContent).toContain('Area and stack');
+    // "Track" since PRP-028 (owner's wording for the direction step).
+    expect(page.textContent).toContain('Track and stack');
     expect(page.textContent).toContain('Start');
     expect(page.querySelector('header a[href="/settings"]')?.textContent?.trim()).toBe('Settings');
     expect(root.lang).toBe('en');
@@ -197,6 +203,33 @@ describe('Language switch', () => {
 
     expect(TestBed.inject(Router).url).toBe('/result');
     expect(headerSwitch(page)?.getAttribute('lang')).toBe('en');
+  });
+
+  it('on /result a switch reloads nothing: the result keeps the titles of the test (PRP-028, item 8)', async () => {
+    const page = await open('/');
+    const sessions = TestBed.inject(TestSessionService);
+    await sessions.start(SETUP, FIELD);
+    await TestBed.inject(Router).navigateByUrl('/test');
+    await fixture.whenStable();
+    await sessions.finish({});
+    await new Promise((resolve) => setTimeout(resolve));
+    await fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/result');
+    const calls = api.catalogCalls;
+    const session = sessions.session();
+    const review = page.querySelector('main')!.textContent;
+
+    headerSwitch(page)!.click();
+    await fixture.whenStable();
+
+    expect(root.lang).toBe('en');
+    expect(api.catalogCalls).toBe(calls);
+    expect(sessions.session()).toBe(session);
+    expect(sessions.session()?.field).toBe(FIELD);
+    // Only the interface texts change; the question and its topic stay as the test got them.
+    expect(page.querySelector('main')!.textContent).not.toBe(review);
+    expect(page.querySelector('main')!.textContent).toContain('What is');
+    expect(page.querySelector('main')!.textContent).toContain('C#');
   });
 
   it('/settings lists every language in its own language and applies a pick at once', async () => {

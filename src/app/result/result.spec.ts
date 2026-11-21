@@ -8,7 +8,9 @@ import { ApiService } from '../core/api.service';
 import { CLOCK } from '../core/clock';
 import { ApiError, Catalog, Field, Question, Test, TestRequest, TestSetup } from '../core/models';
 import { TestSessionService } from '../core/test-session.service';
-import { BROWSER_LANGUAGES } from '../core/i18n/languages';
+import { I18n } from '../core/i18n/i18n.service';
+import { BROWSER_LANGUAGES, LanguageId } from '../core/i18n/languages';
+import { AppStorage, STORAGE } from '../core/storage';
 
 /** Records every request; `/` renders Setup, so the catalog never arrives instead of hitting the network. */
 class FakeApi {
@@ -318,5 +320,251 @@ describe('Result page', () => {
     await settle();
 
     expect(url()).toBe('/');
+  });
+});
+
+/** Keeps the language choice of these tests away from the real localStorage of the other specs. */
+class MemoryStorage implements AppStorage {
+  readonly values = new Map<string, unknown>();
+
+  get<T>(key: string): T | null {
+    return (this.values.get(key) as T | undefined) ?? null;
+  }
+
+  set(key: string, value: unknown): boolean {
+    this.values.set(key, structuredClone(value));
+    return true;
+  }
+
+  remove(key: string): void {
+    this.values.delete(key);
+  }
+}
+
+/**
+ * The same field in each language: ids are shared, titles and counts are those of the language.
+ * In uk every topic has 8 questions per level; `en` overrides the counts per topic.
+ */
+function fieldIn(
+  language: LanguageId,
+  enCounts: Record<string, Record<string, number>> = {},
+): Field {
+  const en = language === 'en';
+  const full = { 'level-a': 4, 'level-b': 4 };
+  return {
+    id: 'f',
+    title: 'F',
+    levels: [
+      { id: 'level-a', title: en ? 'Level A' : 'Рівень А', rank: 1 },
+      { id: 'level-b', title: en ? 'Level B' : 'Рівень Б', rank: 2 },
+    ],
+    directions: [],
+    topics: ['topic-a', 'topic-b', 'topic-empty'].map((id) => ({
+      id,
+      title: `${en ? 'Topic' : 'Тема'} ${id}`,
+      description: '',
+      questionCounts: en ? (enCounts[id] ?? full) : id === 'topic-empty' ? {} : full,
+    })),
+  };
+}
+
+/** a: 8 of 8, b: 4 of 8, and a topic without questions in uk: 12 questions. */
+const RETAKE_SETUP: TestSetup = {
+  fieldId: 'f',
+  levelIds: ['level-a', 'level-b'],
+  total: 12,
+  topics: [
+    { topicId: 'topic-a', max: 8, count: 8 },
+    { topicId: 'topic-b', max: 8, count: 4 },
+    { topicId: 'topic-empty', max: 0, count: 0 },
+  ],
+  timerEnabled: false,
+};
+
+/** Answers every call with the language on screen at that moment; the catalog waits until the test answers it. */
+class LanguageApi {
+  readonly calls: string[] = [];
+  readonly requests: TestRequest[] = [];
+  readonly catalogs: Subject<Catalog>[] = [];
+
+  constructor(private readonly language: () => LanguageId) {}
+
+  getCatalog(): Observable<Catalog> {
+    this.calls.push(`catalog:${this.language()}`);
+    const reply = new Subject<Catalog>();
+    this.catalogs.push(reply);
+    return reply;
+  }
+
+  createTest(request: TestRequest): Observable<Test> {
+    const language = this.language();
+    this.calls.push(`test:${language}`);
+    this.requests.push(request);
+    return of({
+      questions: [{ ...question(`${language}-1`, 'topic-a', 'level-b'), text: `${language} text` }],
+    });
+  }
+
+  answerCatalog(index: number, field: Field): void {
+    this.catalogs[index].next({ fields: [field] });
+    this.catalogs[index].complete();
+  }
+}
+
+describe('Result page: "Пройти ще раз" after a language switch (PRP-028, item 8; spec 3.7)', () => {
+  let api: LanguageApi;
+  let errors: RecordingErrorHandler;
+  let harness: RouterTestingHarness;
+  let sessions: TestSessionService;
+  let i18n: I18n;
+
+  beforeEach(async () => {
+    errors = new RecordingErrorHandler();
+    api = new LanguageApi(() => TestBed.inject(I18n).language());
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter(routes),
+        { provide: ApiService, useValue: api },
+        { provide: CLOCK, useValue: new FakeClock() },
+        { provide: ErrorHandler, useValue: errors },
+        { provide: STORAGE, useValue: new MemoryStorage() },
+        { provide: BROWSER_LANGUAGES, useValue: ['uk'] },
+      ],
+    });
+    sessions = TestBed.inject(TestSessionService);
+    i18n = TestBed.inject(I18n);
+    harness = await RouterTestingHarness.create();
+  });
+
+  afterEach(() => expect(errors.errors).toEqual([]));
+
+  const page = () => harness.routeNativeElement as HTMLElement;
+  const url = () => TestBed.inject(Router).url;
+  const alert = () => page().querySelector('.error[role=alert]')?.textContent?.trim();
+
+  async function settle(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve));
+    await harness.fixture.whenStable();
+  }
+
+  /** A Ukrainian test finished on /result, then the language switched to `language`. */
+  async function finishedThenSwitched(language: LanguageId): Promise<Field> {
+    const field = fieldIn('uk');
+    await sessions.start(RETAKE_SETUP, field);
+    await sessions.finish({});
+    await settle();
+    expect(url()).toBe('/result');
+    expect(sessions.language()).toBe('uk');
+    i18n.setLanguage(language);
+    await harness.fixture.whenStable();
+    api.calls.length = 0;
+    api.requests.length = 0;
+    return field;
+  }
+
+  async function retry(language: LanguageId): Promise<void> {
+    const label =
+      language === 'en'
+        ? 'Retake with the same settings'
+        : 'Пройти ще раз з тими самими налаштуваннями';
+    [...page().querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent?.trim() === label)!
+      .click();
+    await settle();
+  }
+
+  it('in the language of the test repeats as is: no catalog request, the same body and field', async () => {
+    const field = await finishedThenSwitched('uk');
+
+    await retry('uk');
+
+    expect(api.calls).toEqual(['test:uk']);
+    expect(api.requests[0].topics).toEqual([
+      { topicId: 'topic-a', count: 8 },
+      { topicId: 'topic-b', count: 4 },
+    ]);
+    expect(sessions.session()?.field).toBe(field);
+    expect(sessions.session()?.setup).toBe(RETAKE_SETUP);
+    expect(url()).toBe('/test');
+  });
+
+  it('in another language loads that catalog first, lowers counts to its maxima and the whole test is in it', async () => {
+    await finishedThenSwitched('en');
+    // b has 3 questions in English; the empty topic got some, but it took no part in the test.
+    const english = fieldIn('en', { 'topic-b': { 'level-a': 3 }, 'topic-empty': { 'level-a': 4 } });
+
+    await retry('en');
+    expect(api.calls).toEqual(['catalog:en']);
+    api.answerCatalog(0, english);
+    await settle();
+
+    expect(api.calls).toEqual(['catalog:en', 'test:en']);
+    expect(api.requests).toEqual([
+      {
+        fieldId: 'f',
+        levelIds: ['level-a', 'level-b'],
+        topics: [
+          { topicId: 'topic-a', count: 8 },
+          { topicId: 'topic-b', count: 3 },
+        ],
+        excludeQuestionIds: [],
+      },
+    ]);
+    expect(sessions.session()?.field).toBe(english);
+    expect(sessions.session()?.setup.total).toBe(11);
+    expect(sessions.session()?.setup.timerEnabled).toBe(false);
+    expect(sessions.language()).toBe('en');
+    expect(url()).toBe('/test');
+    // Topic and level titles on /test come from the English field, like the questions.
+    expect(page().querySelector('.meta')?.textContent?.trim()).toBe('Topic topic-a · Level B');
+    expect(page().textContent).toContain('en text');
+  });
+
+  it('with fewer than 10 questions left in the new language shows a clear message and sends no test', async () => {
+    await finishedThenSwitched('en');
+
+    await retry('en');
+    api.answerCatalog(
+      0,
+      fieldIn('en', { 'topic-a': { 'level-a': 4 }, 'topic-b': { 'level-b': 4 } }),
+    );
+    await settle();
+
+    expect(api.calls).toEqual(['catalog:en']);
+    expect(url()).toBe('/result');
+    expect(alert()).toBe(
+      'There are not enough questions in this language for these settings. Change them on the setup page.',
+    );
+    expect(sessions.language()).toBe('uk');
+  });
+
+  it('a topic of the test without questions in the new language shows the same message and sends no test', async () => {
+    await finishedThenSwitched('en');
+
+    await retry('en');
+    api.answerCatalog(0, fieldIn('en', { 'topic-a': { 'level-a': 40 }, 'topic-b': {} }));
+    await settle();
+
+    expect(api.calls).toEqual(['catalog:en']);
+    expect(url()).toBe('/result');
+    expect(alert()).toBe(
+      'There are not enough questions in this language for these settings. Change them on the setup page.',
+    );
+  });
+
+  it('a switch back while the catalog loads sends the test in the language on screen with its own field', async () => {
+    const field = await finishedThenSwitched('en');
+
+    await retry('en');
+    i18n.setLanguage('uk');
+    await harness.fixture.whenStable();
+    api.answerCatalog(0, fieldIn('en'));
+    await settle();
+
+    expect(api.calls).toEqual(['catalog:en', 'test:uk']);
+    expect(sessions.session()?.field).toBe(field);
+    expect(sessions.language()).toBe('uk');
+    expect(url()).toBe('/test');
+    expect(page().querySelector('.meta')?.textContent?.trim()).toBe('Тема topic-a · Рівень Б');
   });
 });

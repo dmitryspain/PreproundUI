@@ -9,7 +9,9 @@ import { API_BASE_URL } from '../core/config';
 import { ApiError, Catalog, Field, Test, TestRequest, Topic } from '../core/models';
 import { TestSessionService } from '../core/test-session.service';
 import { Setup } from './setup';
-import { BROWSER_LANGUAGES } from '../core/i18n/languages';
+import { I18n } from '../core/i18n/i18n.service';
+import { BROWSER_LANGUAGES, LanguageId } from '../core/i18n/languages';
+import { AppStorage, STORAGE } from '../core/storage';
 
 @Component({ template: '' })
 class StubTestPage {}
@@ -41,8 +43,30 @@ const TEST: Test = { questions: [] };
 const FULL = { junior: 4, middle: 4, senior: 4 };
 
 // Mirrors the seed: the .NET stack has 10 topics, and only csharp, ef-core and sql have questions.
-const DOTNET = ['csharp', 'dotnet-clr', 'dotnet-async', 'aspnet-core', 'ef-core', 'sql', 'architecture', 'messaging', 'azure', 'docker-k8s'];
-const REACT = ['javascript', 'typescript', 'html-css', 'react-core', 'react-hooks', 'react-state', 'nextjs', 'react-data-routing', 'frontend-testing', 'web-performance'];
+const DOTNET = [
+  'csharp',
+  'dotnet-clr',
+  'dotnet-async',
+  'aspnet-core',
+  'ef-core',
+  'sql',
+  'architecture',
+  'messaging',
+  'azure',
+  'docker-k8s',
+];
+const REACT = [
+  'javascript',
+  'typescript',
+  'html-css',
+  'react-core',
+  'react-hooks',
+  'react-state',
+  'nextjs',
+  'react-data-routing',
+  'frontend-testing',
+  'web-performance',
+];
 const WITH_QUESTIONS = new Set(['csharp', 'ef-core', 'sql']);
 
 function topic(id: string, questionCounts: Record<string, number> = {}): Topic {
@@ -59,8 +83,16 @@ function seedField(): Field {
       { id: 'senior', title: 'Senior', rank: 3 },
     ],
     directions: [
-      { id: 'backend', title: 'Backend', stacks: [{ id: 'dotnet', title: '.NET (C#)', topicIds: DOTNET }] },
-      { id: 'frontend', title: 'Frontend', stacks: [{ id: 'react', title: 'React', topicIds: REACT }] },
+      {
+        id: 'backend',
+        title: 'Backend',
+        stacks: [{ id: 'dotnet', title: '.NET (C#)', topicIds: DOTNET }],
+      },
+      {
+        id: 'frontend',
+        title: 'Frontend',
+        stacks: [{ id: 'react', title: 'React', topicIds: REACT }],
+      },
     ],
     topics: [...DOTNET, ...REACT].map((id) => topic(id, WITH_QUESTIONS.has(id) ? FULL : {})),
   };
@@ -113,27 +145,44 @@ describe('Setup page', () => {
 
   const root = (fixture: ComponentFixture<Setup>) => fixture.nativeElement as HTMLElement;
   const text = (fixture: ComponentFixture<Setup>) => root(fixture).textContent ?? '';
-  const selects = (fixture: ComponentFixture<Setup>) => [...root(fixture).querySelectorAll('select')];
-  const countInputs = (fixture: ComponentFixture<Setup>) =>
-    [...root(fixture).querySelectorAll<HTMLInputElement>('.topic input')];
-  const counts = (fixture: ComponentFixture<Setup>) => countInputs(fixture).map((input) => input.value);
-  const inactive = (fixture: ComponentFixture<Setup>) => [...root(fixture).querySelectorAll('.topic.inactive')];
-  const levelBoxes = (fixture: ComponentFixture<Setup>) =>
-    [...root(fixture).querySelectorAll<HTMLInputElement>('fieldset input[type="checkbox"]')];
+  const selects = (fixture: ComponentFixture<Setup>) => [
+    ...root(fixture).querySelectorAll('select'),
+  ];
+  const countInputs = (fixture: ComponentFixture<Setup>) => [
+    ...root(fixture).querySelectorAll<HTMLInputElement>('.topic input'),
+  ];
+  const counts = (fixture: ComponentFixture<Setup>) =>
+    countInputs(fixture).map((input) => input.value);
+  const inactive = (fixture: ComponentFixture<Setup>) => [
+    ...root(fixture).querySelectorAll('.topic.inactive'),
+  ];
+  const levelBoxes = (fixture: ComponentFixture<Setup>) => [
+    ...root(fixture).querySelectorAll<HTMLInputElement>('fieldset input[type="checkbox"]'),
+  ];
   const startButton = (fixture: ComponentFixture<Setup>) =>
     root(fixture).querySelector<HTMLButtonElement>('button.btn-primary');
   // The total comes before the topics, so it is the first number field.
-  const totalInput = (fixture: ComponentFixture<Setup>) => root(fixture).querySelector<HTMLInputElement>('input.number')!;
-  const hint = (fixture: ComponentFixture<Setup>) => root(fixture).querySelector('.hint')?.textContent ?? null;
+  const totalInput = (fixture: ComponentFixture<Setup>) =>
+    root(fixture).querySelector<HTMLInputElement>('input.number')!;
+  const hint = (fixture: ComponentFixture<Setup>) =>
+    root(fixture).querySelector('.hint')?.textContent ?? null;
 
-  async function choose(fixture: ComponentFixture<Setup>, index: number, value: string): Promise<void> {
+  async function choose(
+    fixture: ComponentFixture<Setup>,
+    index: number,
+    value: string,
+  ): Promise<void> {
     const select = selects(fixture)[index];
     select.value = value;
     select.dispatchEvent(new Event('change'));
     await fixture.whenStable();
   }
 
-  async function type(fixture: ComponentFixture<Setup>, input: HTMLInputElement, value: string): Promise<void> {
+  async function type(
+    fixture: ComponentFixture<Setup>,
+    input: HTMLInputElement,
+    value: string,
+  ): Promise<void> {
     input.value = value;
     input.dispatchEvent(new Event('input'));
     await fixture.whenStable();
@@ -150,7 +199,9 @@ describe('Setup page', () => {
     await pickDotnet(fixture);
 
     expect(counts(fixture)).toEqual(['7', '7', '6']);
-    const titles = [...root(fixture).querySelectorAll('.topic:not(.inactive) .topic-title')].map((el) => el.textContent?.trim());
+    const titles = [...root(fixture).querySelectorAll('.topic:not(.inactive) .topic-title')].map(
+      (el) => el.textContent?.trim(),
+    );
     expect(titles).toEqual(['T csharp', 'T ef-core', 'T sql']);
     expect(inactive(fixture)).toHaveLength(7);
     for (const row of inactive(fixture)) {
@@ -226,7 +277,13 @@ describe('Setup page', () => {
         fields: [
           {
             ...seedField(),
-            directions: [{ id: 'backend', title: 'Backend', stacks: [{ id: 'dotnet', title: '.NET', topicIds: ['a', 'b'] }] }],
+            directions: [
+              {
+                id: 'backend',
+                title: 'Backend',
+                stacks: [{ id: 'dotnet', title: '.NET', topicIds: ['a', 'b'] }],
+              },
+            ],
             topics: [topic('a', { junior: 10, senior: 10 }), topic('b', { junior: 10 })],
           },
         ],
@@ -318,7 +375,9 @@ describe('Setup page', () => {
     api.catalog = () => throwError(() => new ApiError("Не вдалося зв'язатися із сервером."));
     const fixture = await render();
 
-    expect(root(fixture).querySelector('[role="alert"]')?.textContent?.trim()).toBe("Не вдалося зв'язатися із сервером.");
+    expect(root(fixture).querySelector('[role="alert"]')?.textContent?.trim()).toBe(
+      "Не вдалося зв'язатися із сервером.",
+    );
     expect(selects(fixture)).toHaveLength(0);
     expect(root(fixture).querySelector('input')).toBeNull();
     expect(startButton(fixture)).toBeNull();
@@ -382,7 +441,9 @@ describe('Setup page', () => {
       catalog.error(new ApiError("Не вдалося зв'язатися із сервером."));
       fixture.detectChanges();
 
-      expect(root(fixture).querySelector('[role="alert"]')?.textContent?.trim()).toBe("Не вдалося зв'язатися із сервером.");
+      expect(root(fixture).querySelector('[role="alert"]')?.textContent?.trim()).toBe(
+        "Не вдалося зв'язатися із сервером.",
+      );
       expect(text(fixture)).not.toContain(SLOW);
       expect(text(fixture)).not.toContain('Завантаження…');
     });
@@ -450,9 +511,15 @@ describe('Setup page', () => {
     expect(selects(several)[0].value).toBe('it');
 
     await choose(several, 0, 'science');
-    expect(levelBoxes(several).map((box) => box.parentElement?.textContent?.trim())).toEqual(['Аспірант', 'Кандидат наук']);
+    expect(levelBoxes(several).map((box) => box.parentElement?.textContent?.trim())).toEqual([
+      'Аспірант',
+      'Кандидат наук',
+    ]);
     expect(levelBoxes(several).every((box) => box.checked)).toBe(true);
-    expect([...selects(several)[1].options].map((option) => option.textContent?.trim())).toEqual(['Виберіть напрям', 'Фізика']);
+    expect([...selects(several)[1].options].map((option) => option.textContent?.trim())).toEqual([
+      'Виберіть напрям',
+      'Фізика',
+    ]);
   });
 
   it('shows a data-only level such as Architect in rank order and counts its questions', async () => {
@@ -468,13 +535,24 @@ describe('Setup page', () => {
               { id: 'junior', title: 'Junior', rank: 1 },
               { id: 'middle', title: 'Middle', rank: 2 },
             ],
-            directions: [{ id: 'backend', title: 'Backend', stacks: [{ id: 'dotnet', title: '.NET', topicIds: ['arch', 'sql'] }] }],
+            directions: [
+              {
+                id: 'backend',
+                title: 'Backend',
+                stacks: [{ id: 'dotnet', title: '.NET', topicIds: ['arch', 'sql'] }],
+              },
+            ],
             topics: [topic('arch', { architect: 12 }), topic('sql', { junior: 12 })],
           },
         ],
       });
     const fixture = await render();
-    expect(levelBoxes(fixture).map((box) => box.parentElement?.textContent?.trim())).toEqual(['Junior', 'Middle', 'Senior', 'Architect']);
+    expect(levelBoxes(fixture).map((box) => box.parentElement?.textContent?.trim())).toEqual([
+      'Junior',
+      'Middle',
+      'Senior',
+      'Architect',
+    ]);
 
     await pickDotnet(fixture);
     expect(counts(fixture)).toEqual(['10', '10']);
@@ -522,7 +600,9 @@ describe('Setup page', () => {
 
   it('shows the hint once a single topic is added, when it has fewer questions than the total', async () => {
     const fixture = await render();
-    [...root(fixture).querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Додати тему')!.click();
+    [...root(fixture).querySelectorAll('button')]
+      .find((button) => button.textContent?.trim() === 'Додати тему')!
+      .click();
     await fixture.whenStable();
 
     root(fixture).querySelector<HTMLButtonElement>('button.candidate')!.click();
@@ -538,7 +618,13 @@ describe('Setup page', () => {
         fields: [
           {
             ...seedField(),
-            directions: [{ id: 'backend', title: 'Backend', stacks: [{ id: 'dotnet', title: '.NET', topicIds: ['mu'] }] }],
+            directions: [
+              {
+                id: 'backend',
+                title: 'Backend',
+                stacks: [{ id: 'dotnet', title: '.NET', topicIds: ['mu'] }],
+              },
+            ],
             topics: [
               { id: 'zeta', title: 'Zeta', description: '', questionCounts: { junior: 20 } },
               { id: 'alpha', title: 'Alpha', description: '', questionCounts: { junior: 20 } },
@@ -548,14 +634,26 @@ describe('Setup page', () => {
         ],
       });
     const fixture = await render();
-    const candidates = () => [...root(fixture).querySelectorAll<HTMLButtonElement>('button.candidate')];
-    const openAdd = [...root(fixture).querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Додати тему')!;
+    const candidates = () => [
+      ...root(fixture).querySelectorAll<HTMLButtonElement>('button.candidate'),
+    ];
+    const openAdd = [...root(fixture).querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Додати тему',
+    )!;
 
     openAdd.click();
     await fixture.whenStable();
-    expect(candidates().map((button) => button.textContent?.trim())).toEqual(['Zeta', 'Alpha', 'Mu']);
+    expect(candidates().map((button) => button.textContent?.trim())).toEqual([
+      'Zeta',
+      'Alpha',
+      'Mu',
+    ]);
 
-    await type(fixture, root(fixture).querySelector<HTMLInputElement>('input[type="search"]')!, 'A');
+    await type(
+      fixture,
+      root(fixture).querySelector<HTMLInputElement>('input[type="search"]')!,
+      'A',
+    );
     expect(candidates().map((button) => button.textContent?.trim())).toEqual(['Zeta', 'Alpha']);
 
     await type(fixture, root(fixture).querySelector<HTMLInputElement>('input[type="search"]')!, '');
@@ -567,7 +665,9 @@ describe('Setup page', () => {
     expect(candidates().map((button) => button.textContent?.trim())).toEqual(['Zeta']);
     expect(counts(fixture)).toEqual(['10', '10']);
 
-    root(fixture).querySelector<HTMLButtonElement>('button[aria-label="Прибрати тему Mu"]')!.click();
+    root(fixture)
+      .querySelector<HTMLButtonElement>('button[aria-label="Прибрати тему Mu"]')!
+      .click();
     await fixture.whenStable();
     expect(counts(fixture)).toEqual(['20']);
     expect(candidates().map((button) => button.textContent?.trim())).toEqual(['Zeta', 'Mu']);
@@ -576,7 +676,8 @@ describe('Setup page', () => {
   it('redistributes on a new total, flags totals outside 10–100 and labels the timer in minutes', async () => {
     const fixture = await render();
     await pickDotnet(fixture);
-    const timer = () => root(fixture).querySelector('input[role="switch"]')!.parentElement!.textContent!.trim();
+    const timer = () =>
+      root(fixture).querySelector('input[role="switch"]')!.parentElement!.textContent!.trim();
     expect(timer()).toBe('Таймер: 20 хв');
 
     await type(fixture, totalInput(fixture), '30');
@@ -617,13 +718,284 @@ describe('Setup page with the real ApiService', () => {
     const fixture = TestBed.createComponent(Setup);
     const http = TestBed.inject(HttpTestingController);
 
-    http.expectOne('https://api.test/api/catalog').error(new ProgressEvent('error'));
+    http.expectOne('https://api.test/api/catalog?lang=uk').error(new ProgressEvent('error'));
     await fixture.whenStable();
 
     const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelector('[role="alert"]')?.textContent?.trim()).toBe("Не вдалося зв'язатися із сервером.");
+    expect(root.querySelector('[role="alert"]')?.textContent?.trim()).toBe(
+      "Не вдалося зв'язатися із сервером.",
+    );
     expect(root.querySelector('select')).toBeNull();
     expect(errors.errors).toEqual([]);
     http.verify();
+  });
+});
+
+/** Keeps the language choice of these tests away from the real localStorage of the other specs. */
+class MemoryStorage implements AppStorage {
+  readonly values = new Map<string, unknown>();
+
+  get<T>(key: string): T | null {
+    return (this.values.get(key) as T | undefined) ?? null;
+  }
+
+  set(key: string, value: unknown): boolean {
+    this.values.set(key, structuredClone(value));
+    return true;
+  }
+
+  remove(key: string): void {
+    this.values.delete(key);
+  }
+}
+
+/**
+ * The catalog of one language: the same ids in every language, titles of that language,
+ * and counts of the questions available in it.
+ */
+function languageField(
+  language: LanguageId,
+  counts: Record<string, Record<string, number>> = {},
+): Field {
+  const en = language === 'en';
+  const full = { junior: 4, middle: 4, senior: 4 };
+  return {
+    id: 'it',
+    title: 'IT',
+    levels: [
+      { id: 'junior', title: en ? 'Junior' : 'Джуніор', rank: 1 },
+      { id: 'middle', title: en ? 'Middle' : 'Мідл', rank: 2 },
+      { id: 'senior', title: en ? 'Senior' : 'Сеніор', rank: 3 },
+    ],
+    directions: [
+      {
+        id: 'backend',
+        title: en ? 'Backend' : 'Бекенд',
+        stacks: [
+          { id: 'dotnet', title: en ? '.NET en' : '.NET uk', topicIds: ['a', 'b', 'c'] },
+          { id: 'go', title: 'Go', topicIds: ['c'] },
+        ],
+      },
+    ],
+    topics: ['a', 'b', 'c'].map((id) => ({
+      id,
+      title: `${en ? 'Topic' : 'Тема'} ${id.toUpperCase()}`,
+      description: '',
+      questionCounts: counts[id] ?? full,
+    })),
+  };
+}
+
+/** One request per call, answered by the test whenever it likes; records the language of the moment of the call. */
+class LanguageApi {
+  readonly calls: { language: LanguageId; reply: Subject<Catalog> }[] = [];
+
+  constructor(private readonly i18n: () => I18n) {}
+
+  getCatalog(): Observable<Catalog> {
+    const reply = new Subject<Catalog>();
+    this.calls.push({ language: this.i18n().language(), reply });
+    return reply;
+  }
+
+  createTest(_request: TestRequest): Observable<Test> {
+    return of(TEST);
+  }
+
+  answer(index: number, catalog: Catalog): void {
+    this.calls[index].reply.next(catalog);
+    this.calls[index].reply.complete();
+  }
+}
+
+describe('Setup page after a language switch (PRP-028, spec 3.7)', () => {
+  let api: LanguageApi;
+  let errors: RecordingErrorHandler;
+
+  beforeEach(() => {
+    api = new LanguageApi(() => TestBed.inject(I18n));
+    errors = new RecordingErrorHandler();
+    TestBed.configureTestingModule({
+      imports: [Setup],
+      providers: [
+        provideRouter([
+          { path: '', component: Setup },
+          { path: 'test', component: StubTestPage },
+        ]),
+        { provide: ApiService, useValue: api },
+        { provide: ErrorHandler, useValue: errors },
+        { provide: STORAGE, useValue: new MemoryStorage() },
+        { provide: BROWSER_LANGUAGES, useValue: ['uk'] },
+      ],
+    });
+  });
+
+  afterEach(() => expect(errors.errors).toEqual([]));
+
+  const root = (fixture: ComponentFixture<Setup>) => fixture.nativeElement as HTMLElement;
+  const text = (fixture: ComponentFixture<Setup>) => root(fixture).textContent ?? '';
+  const selects = (fixture: ComponentFixture<Setup>) => [
+    ...root(fixture).querySelectorAll('select'),
+  ];
+  const countInputs = (fixture: ComponentFixture<Setup>) => [
+    ...root(fixture).querySelectorAll<HTMLInputElement>('.topic input'),
+  ];
+  const counts = (fixture: ComponentFixture<Setup>) =>
+    countInputs(fixture).map((input) => input.value);
+  const topicTitles = (fixture: ComponentFixture<Setup>) =>
+    [...root(fixture).querySelectorAll('.topic .topic-title')].map((el) => el.textContent?.trim());
+  const inactive = (fixture: ComponentFixture<Setup>) => [
+    ...root(fixture).querySelectorAll('.topic.inactive'),
+  ];
+  const levelBoxes = (fixture: ComponentFixture<Setup>) => [
+    ...root(fixture).querySelectorAll<HTMLInputElement>('fieldset input[type="checkbox"]'),
+  ];
+  const levelTitles = (fixture: ComponentFixture<Setup>) =>
+    levelBoxes(fixture).map((box) => box.parentElement?.textContent?.trim());
+  const startButton = (fixture: ComponentFixture<Setup>) =>
+    root(fixture).querySelector<HTMLButtonElement>('button.btn-primary');
+  const totalInput = (fixture: ComponentFixture<Setup>) =>
+    root(fixture).querySelector<HTMLInputElement>('input.number')!;
+  const timerSwitch = (fixture: ComponentFixture<Setup>) =>
+    root(fixture).querySelector<HTMLInputElement>('input[role="switch"]')!;
+
+  async function choose(
+    fixture: ComponentFixture<Setup>,
+    index: number,
+    value: string,
+  ): Promise<void> {
+    const select = selects(fixture)[index];
+    select.value = value;
+    select.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+  }
+
+  async function type(
+    fixture: ComponentFixture<Setup>,
+    input: HTMLInputElement,
+    value: string,
+  ): Promise<void> {
+    input.value = value;
+    input.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+  }
+
+  /** The page with the Ukrainian catalog loaded and the .NET stack picked: 7/7/6 of 20. */
+  async function ready(): Promise<ComponentFixture<Setup>> {
+    const fixture = TestBed.createComponent(Setup);
+    await fixture.whenStable();
+    expect(api.calls.map((call) => call.language)).toEqual(['uk']);
+    api.answer(0, { fields: [languageField('uk')] });
+    await fixture.whenStable();
+    await choose(fixture, 0, 'backend');
+    await choose(fixture, 1, 'dotnet');
+    expect(counts(fixture)).toEqual(['7', '7', '6']);
+    return fixture;
+  }
+
+  async function switchTo(fixture: ComponentFixture<Setup>, language: LanguageId): Promise<void> {
+    TestBed.inject(I18n).setLanguage(language);
+    await fixture.whenStable();
+  }
+
+  it('loads the catalog in the new language and keeps stack, levels, topics, counts, total and timer by id', async () => {
+    const fixture = await ready();
+    levelBoxes(fixture)[0].click();
+    await fixture.whenStable();
+    await type(fixture, totalInput(fixture), '18');
+    await type(fixture, countInputs(fixture)[0], '8');
+    await type(fixture, countInputs(fixture)[1], '5');
+    await type(fixture, countInputs(fixture)[2], '5');
+    timerSwitch(fixture).click();
+    await fixture.whenStable();
+
+    await switchTo(fixture, 'en');
+    expect(api.calls.map((call) => call.language)).toEqual(['uk', 'en']);
+    api.answer(1, { fields: [languageField('en')] });
+    await fixture.whenStable();
+
+    expect(selects(fixture).map((select) => select.value)).toEqual(['backend', 'dotnet']);
+    expect([...selects(fixture)[1].options].map((option) => option.textContent?.trim())).toEqual([
+      'Choose a stack',
+      '.NET en',
+      'Go',
+    ]);
+    expect(levelTitles(fixture)).toEqual(['Junior', 'Middle', 'Senior']);
+    expect(levelBoxes(fixture).map((box) => box.checked)).toEqual([false, true, true]);
+    expect(topicTitles(fixture)).toEqual(['Topic A', 'Topic B', 'Topic C']);
+    expect(counts(fixture)).toEqual(['8', '5', '5']);
+    expect(totalInput(fixture).value).toBe('18');
+    expect(timerSwitch(fixture).checked).toBe(false);
+    expect(text(fixture)).toContain('Timer: off');
+    expect(text(fixture)).toContain('Distributed 18 of 18');
+    expect(startButton(fixture)!.disabled).toBe(false);
+  });
+
+  it('lowers a count above the new maximum to it and turns a topic without questions in the new language inactive with 0', async () => {
+    const fixture = await ready();
+
+    await switchTo(fixture, 'en');
+    api.answer(1, { fields: [languageField('en', { b: { junior: 2, middle: 1 }, c: {} })] });
+    await fixture.whenStable();
+
+    expect(topicTitles(fixture)).toEqual(['Topic A', 'Topic B', 'Topic C']);
+    expect(counts(fixture)).toEqual(['7', '3']);
+    expect(countInputs(fixture).map((input) => input.max)).toEqual(['12', '3']);
+    expect(inactive(fixture)).toHaveLength(1);
+    expect(inactive(fixture)[0].querySelector('.topic-title')?.textContent?.trim()).toBe('Topic C');
+    expect(inactive(fixture)[0].textContent).toContain('0 questions');
+    expect(inactive(fixture)[0].querySelector('input')).toBeNull();
+    expect(text(fixture)).toContain('Distributed 10 of 20');
+    expect(startButton(fixture)!.disabled).toBe(true);
+  });
+
+  it('uk → en → uk with the answers in reverse order ends with the Ukrainian catalog, and "Почати" waits for it', async () => {
+    const fixture = await ready();
+
+    await switchTo(fixture, 'en');
+    // The previous catalog stays on screen meanwhile, but no test starts from it.
+    expect(topicTitles(fixture)).toEqual(['Тема A', 'Тема B', 'Тема C']);
+    expect(startButton(fixture)!.disabled).toBe(true);
+    await switchTo(fixture, 'uk');
+    expect(api.calls.map((call) => call.language)).toEqual(['uk', 'en', 'uk']);
+    // The English request is dropped as soon as the next one starts.
+    expect(api.calls[1].reply.observed).toBe(false);
+
+    api.answer(2, { fields: [languageField('uk', { b: { junior: 4 } })] });
+    await fixture.whenStable();
+    api.answer(1, { fields: [languageField('en')] });
+    await fixture.whenStable();
+
+    expect(levelTitles(fixture)).toEqual(['Джуніор', 'Мідл', 'Сеніор']);
+    expect(topicTitles(fixture)).toEqual(['Тема A', 'Тема B', 'Тема C']);
+    expect(selects(fixture)[1].selectedOptions[0].textContent?.trim()).toBe('.NET uk');
+    expect(counts(fixture)).toEqual(['7', '4', '6']);
+    expect(text(fixture)).toContain('Налаштування тесту');
+  });
+
+  it('a failed reload shows the same error as a failed first load, and the next language restores the choice', async () => {
+    const fixture = await ready();
+
+    await switchTo(fixture, 'en');
+    api.calls[1].reply.error(new ApiError('Could not reach the server.'));
+    await fixture.whenStable();
+
+    expect(root(fixture).querySelector('[role="alert"]')?.textContent?.trim()).toBe(
+      'Could not reach the server.',
+    );
+    expect(selects(fixture)).toHaveLength(0);
+    expect(root(fixture).querySelector('input')).toBeNull();
+    expect(startButton(fixture)).toBeNull();
+    expect(text(fixture)).not.toContain('Loading…');
+
+    await switchTo(fixture, 'uk');
+    expect(text(fixture)).toContain('Завантаження…');
+    expect(root(fixture).querySelector('[role="alert"]')).toBeNull();
+    api.answer(2, { fields: [languageField('uk')] });
+    await fixture.whenStable();
+
+    expect(selects(fixture).map((select) => select.value)).toEqual(['backend', 'dotnet']);
+    expect(counts(fixture)).toEqual(['7', '7', '6']);
+    expect(startButton(fixture)!.disabled).toBe(false);
   });
 });

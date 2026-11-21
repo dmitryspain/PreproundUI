@@ -6,6 +6,8 @@ import { CLOCK } from './clock';
 import { SECONDS_PER_QUESTION } from './config';
 import { isActive } from './distribution';
 import { grade, score } from './grading';
+import { I18n } from './i18n/i18n.service';
+import { LanguageId } from './i18n/languages';
 import { Answers, Field, Test, TestRequest, TestResult, TestSetup } from './models';
 
 /** The test in progress, kept only in memory: a reload loses it (spec 3.2). */
@@ -21,13 +23,21 @@ export class TestSessionService {
   private readonly api = inject(ApiService);
   private readonly clock = inject(CLOCK);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
   private readonly current = signal<TestSession | null>(null);
+  private readonly contentLanguage = signal<LanguageId | null>(null);
   /** `CLOCK.now()` when the current test was received. */
   private readonly startedAt = signal(0);
   private readonly outcome = signal<TestResult | null>(null);
 
   /** `null` until a test has been created. */
   readonly session = this.current.asReadonly();
+
+  /**
+   * Language of the current test's questions and of its `field`: the one on screen when it was created.
+   * The test keeps it for good (spec 3.7); `null` until a test has been created.
+   */
+  readonly language = this.contentLanguage.asReadonly();
 
   /** Result of the current test once it is finished; `null` while it is in progress. */
   readonly result = this.outcome.asReadonly();
@@ -56,8 +66,11 @@ export class TestSessionService {
       excludeQuestionIds: [],
     };
 
+    // Read together with the request, which takes the same language for its `lang`.
+    const language = this.i18n.language();
     const test = await firstValueFrom(this.api.createTest(request));
     this.current.set({ field, setup, test });
+    this.contentLanguage.set(language);
     this.startedAt.set(this.clock.now());
     this.outcome.set(null);
   }
